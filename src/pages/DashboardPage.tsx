@@ -1,0 +1,182 @@
+import { useAppStore } from "@/store/app-store";
+import { KPICard } from "@/components/KPICard";
+import { PrioridadBadge } from "@/components/PrioridadBadge";
+import { formatUSD, formatDate, getCurrentISOWeek } from "@/lib/business-rules";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, CartesianGrid } from "recharts";
+
+const CHART_COLORS = ["hsl(0,100%,38%)", "hsl(27,92%,47%)", "hsl(45,100%,37%)", "hsl(100,41%,24%)"];
+
+export default function DashboardPage() {
+  const { facturas, historico } = useAppStore();
+  const currentWeek = getCurrentISOWeek();
+
+  // Calculate real balances
+  const getReal = (nf: string) => {
+    const f = facturas.find((x) => x.numero_factura === nf);
+    if (!f) return 0;
+    const abonado = historico.filter((h) => h.numero_factura === nf).reduce((s, h) => s + h.monto_pagado, 0);
+    return f.saldo_total - abonado;
+  };
+
+  const activasConSaldo = facturas.filter((f) => getReal(f.numero_factura) > 0);
+  const totalPendiente = activasConSaldo.reduce((s, f) => s + getReal(f.numero_factura), 0);
+  const vencidoCritico = activasConSaldo.filter((f) => f.prioridad === "CRITICO").reduce((s, f) => s + getReal(f.numero_factura), 0);
+  const pagadoEstaSemana = historico.filter((h) => h.semana === currentWeek).reduce((s, h) => s + h.monto_pagado, 0);
+  const facturasOver30 = activasConSaldo.filter((f) => f.dias_vencidos >= 30).length;
+
+  // Priority distribution
+  const prioridadData = (["CRITICO", "URGENTE", "PROXIMO", "AL_DIA"] as const).map((p) => ({
+    name: p.replace("_", " "),
+    value: activasConSaldo.filter((f) => f.prioridad === p).length,
+    amount: activasConSaldo.filter((f) => f.prioridad === p).reduce((s, f) => s + getReal(f.numero_factura), 0),
+  }));
+
+  // Top 5 proveedores
+  const provMap = new Map<string, number>();
+  activasConSaldo.forEach((f) => {
+    provMap.set(f.razon_social, (provMap.get(f.razon_social) || 0) + getReal(f.numero_factura));
+  });
+  const pieData = [...provMap.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([name, value]) => ({ name: name.length > 15 ? name.substring(0, 15) + "…" : name, value }));
+
+  const PIE_COLORS = ["#2E75B6", "#1F3864", "#E36B0A", "#375623", "#BF8F00"];
+
+  // Weekly history (mock last 8 weeks)
+  const weeklyData = Array.from({ length: 8 }, (_, i) => {
+    const w = `W${String(parseInt(currentWeek.split("W")[1]) - 7 + i).padStart(2, "0")}`;
+    const total = historico.filter((h) => h.semana.endsWith(w)).reduce((s, h) => s + h.monto_pagado, 0);
+    return { semana: w, total };
+  });
+
+  // Critical alerts
+  const alertas = activasConSaldo
+    .filter((f) => f.prioridad === "CRITICO")
+    .sort((a, b) => b.dias_vencidos - a.dias_vencidos)
+    .slice(0, 10);
+
+  return (
+    <div className="space-y-6 animate-fade-in">
+      <div>
+        <h2 className="text-xl font-semibold text-teal">Dashboard Ejecutivo</h2>
+        <p className="text-sm text-muted-foreground">Semana {currentWeek} — Visión general de cuentas por pagar</p>
+      </div>
+
+      {/* KPIs */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <KPICard title="CxP Total Pendiente" value={totalPendiente} variant="default" />
+        <KPICard title="Vencido Crítico" value={vencidoCritico} variant="danger" subtitle={`${alertas.length} facturas`} />
+        <KPICard title="Pagado Esta Semana" value={pagadoEstaSemana} variant="success" />
+        <KPICard title="Facturas > 30 días" value={String(facturasOver30)} variant="warning" subtitle="requieren atención" />
+      </div>
+
+      {/* Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Bar chart */}
+        <div className="bg-card rounded-lg p-5 card-shadow">
+          <h3 className="text-sm font-semibold mb-4">Distribución por Prioridad</h3>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={prioridadData}>
+              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} />
+              <Tooltip formatter={(v: number) => formatUSD(v)} />
+              <Bar dataKey="amount" radius={[4, 4, 0, 0]}>
+                {prioridadData.map((_, i) => (
+                  <Cell key={i} fill={CHART_COLORS[i]} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Line chart */}
+        <div className="bg-card rounded-lg p-5 card-shadow">
+          <h3 className="text-sm font-semibold mb-4">Pagos por Semana</h3>
+          <ResponsiveContainer width="100%" height={220}>
+            <LineChart data={weeklyData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(214,32%,91%)" />
+              <XAxis dataKey="semana" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} />
+              <Tooltip formatter={(v: number) => formatUSD(v)} />
+              <Line type="monotone" dataKey="total" stroke="#2E75B6" strokeWidth={2} dot={{ r: 4 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Pie chart */}
+        <div className="bg-card rounded-lg p-5 card-shadow">
+          <h3 className="text-sm font-semibold mb-4">CxP por Proveedor (Top 5)</h3>
+          <ResponsiveContainer width="100%" height={220}>
+            <PieChart>
+              <Pie data={pieData} cx="50%" cy="50%" outerRadius={80} dataKey="value" label={({ name }) => name}>
+                {pieData.map((_, i) => (
+                  <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip formatter={(v: number) => formatUSD(v)} />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Semáforo */}
+        <div className="bg-card rounded-lg p-5 card-shadow">
+          <h3 className="text-sm font-semibold mb-4">Resumen Ejecutivo</h3>
+          <div className="space-y-3">
+            {prioridadData.map((p, i) => (
+              <div key={p.name} className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="h-3 w-3 rounded-full" style={{ backgroundColor: CHART_COLORS[i] }} />
+                  <span className="text-sm">{p.name}</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-sm font-medium tabular-nums">{formatUSD(p.amount)}</span>
+                  <span className="text-xs text-muted-foreground ml-2">({p.value})</span>
+                </div>
+              </div>
+            ))}
+            <div className="border-t pt-3 flex justify-between font-semibold text-sm">
+              <span>Total</span>
+              <span className="tabular-nums">{formatUSD(totalPendiente)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Alertas */}
+      {alertas.length > 0 && (
+        <div className="bg-card rounded-lg card-shadow overflow-hidden">
+          <div className="px-5 py-3 border-b bg-danger-light">
+            <h3 className="text-sm font-semibold text-danger">⚠ Alertas — Facturas Críticas</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-muted/50">
+                  <th className="text-left px-4 py-2 text-xs uppercase tracking-wider text-muted-foreground font-medium">Proveedor</th>
+                  <th className="text-left px-4 py-2 text-xs uppercase tracking-wider text-muted-foreground font-medium">Factura</th>
+                  <th className="text-right px-4 py-2 text-xs uppercase tracking-wider text-muted-foreground font-medium">Saldo</th>
+                  <th className="text-right px-4 py-2 text-xs uppercase tracking-wider text-muted-foreground font-medium">Días Vencidos</th>
+                  <th className="text-center px-4 py-2 text-xs uppercase tracking-wider text-muted-foreground font-medium">Prioridad</th>
+                  <th className="text-left px-4 py-2 text-xs uppercase tracking-wider text-muted-foreground font-medium">Vencimiento</th>
+                </tr>
+              </thead>
+              <tbody>
+                {alertas.map((f) => (
+                  <tr key={f.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
+                    <td className="px-4 py-3 font-medium">{f.razon_social}</td>
+                    <td className="px-4 py-3 tabular-nums">{f.numero_factura}</td>
+                    <td className="px-4 py-3 text-right tabular-nums font-medium">{formatUSD(getReal(f.numero_factura))}</td>
+                    <td className="px-4 py-3 text-right tabular-nums font-semibold text-danger">{f.dias_vencidos}</td>
+                    <td className="px-4 py-3 text-center"><PrioridadBadge prioridad={f.prioridad} /></td>
+                    <td className="px-4 py-3">{formatDate(f.fecha_vencimiento)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
