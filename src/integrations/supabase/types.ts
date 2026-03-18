@@ -14,16 +14,430 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      facturas: {
+        Row: {
+          codigo_proveedor: string
+          created_at: string
+          dias_credito: number
+          doc_interno: string
+          fecha_emision: string
+          fecha_vencimiento: string
+          id: string
+          motivo: string
+          numero_factura: string
+          observaciones: string
+          periodo: string
+          razon_social: string
+          saldo_total: number
+          updated_at: string
+        }
+        Insert: {
+          codigo_proveedor: string
+          created_at?: string
+          dias_credito?: number
+          doc_interno?: string
+          fecha_emision: string
+          fecha_vencimiento: string
+          id?: string
+          motivo?: string
+          numero_factura: string
+          observaciones?: string
+          periodo?: string
+          razon_social: string
+          saldo_total?: number
+          updated_at?: string
+        }
+        Update: {
+          codigo_proveedor?: string
+          created_at?: string
+          dias_credito?: number
+          doc_interno?: string
+          fecha_emision?: string
+          fecha_vencimiento?: string
+          id?: string
+          motivo?: string
+          numero_factura?: string
+          observaciones?: string
+          periodo?: string
+          razon_social?: string
+          saldo_total?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "facturas_codigo_proveedor_fkey"
+            columns: ["codigo_proveedor"]
+            isOneToOne: false
+            referencedRelation: "proveedores"
+            referencedColumns: ["codigo"]
+          },
+        ]
+      }
+      historico: {
+        Row: {
+          aprobado_por: string
+          banco_destino: string
+          banco_origen: string
+          codigo_proveedor: string
+          created_at: string
+          cuenta_destino: string
+          dias_vencidos: number
+          fecha_archivo: string
+          fecha_pago: string
+          fecha_vencimiento: string | null
+          forma_pago: Database["public"]["Enums"]["forma_pago"]
+          id: string
+          monto_pagado: number
+          numero_factura: string
+          numero_linea: number
+          numero_transferencia: string
+          observaciones: string
+          periodo: string
+          prioridad: Database["public"]["Enums"]["prioridad"]
+          razon_social: string
+          responsable: string
+          saldo_pendiente: number
+          semana: string
+        }
+        Insert: {
+          aprobado_por?: string
+          banco_destino?: string
+          banco_origen?: string
+          codigo_proveedor: string
+          created_at?: string
+          cuenta_destino?: string
+          dias_vencidos?: number
+          fecha_archivo?: string
+          fecha_pago: string
+          fecha_vencimiento?: string | null
+          forma_pago?: Database["public"]["Enums"]["forma_pago"]
+          id?: string
+          monto_pagado?: number
+          numero_factura: string
+          numero_linea?: number
+          numero_transferencia?: string
+          observaciones?: string
+          periodo?: string
+          prioridad?: Database["public"]["Enums"]["prioridad"]
+          razon_social: string
+          responsable?: string
+          saldo_pendiente?: number
+          semana: string
+        }
+        Update: {
+          aprobado_por?: string
+          banco_destino?: string
+          banco_origen?: string
+          codigo_proveedor?: string
+          created_at?: string
+          cuenta_destino?: string
+          dias_vencidos?: number
+          fecha_archivo?: string
+          fecha_pago?: string
+          fecha_vencimiento?: string | null
+          forma_pago?: Database["public"]["Enums"]["forma_pago"]
+          id?: string
+          monto_pagado?: number
+          numero_factura?: string
+          numero_linea?: number
+          numero_transferencia?: string
+          observaciones?: string
+          periodo?: string
+          prioridad?: Database["public"]["Enums"]["prioridad"]
+          razon_social?: string
+          responsable?: string
+          saldo_pendiente?: number
+          semana?: string
+        }
+        Relationships: []
+      }
+      lineas_programacion: {
+        Row: {
+          banco_destino: string
+          codigo_proveedor: string
+          created_at: string
+          cuenta_destino: string
+          dias_vencidos: number
+          estado_aprobacion: Database["public"]["Enums"]["estado_aprobacion"]
+          fecha_programada: string
+          fecha_vencimiento: string
+          forma_pago: Database["public"]["Enums"]["forma_pago"]
+          id: string
+          monto_a_pagar: number
+          numero_factura: string
+          observaciones: string
+          prioridad: Database["public"]["Enums"]["prioridad"]
+          razon_social: string
+          responsable_pago: string
+          saldo_real_pendiente: number
+          semana_id: string
+        }
+        Insert: {
+          banco_destino?: string
+          codigo_proveedor: string
+          created_at?: string
+          cuenta_destino?: string
+          dias_vencidos?: number
+          estado_aprobacion?: Database["public"]["Enums"]["estado_aprobacion"]
+          fecha_programada?: string
+          fecha_vencimiento: string
+          forma_pago?: Database["public"]["Enums"]["forma_pago"]
+          id?: string
+          monto_a_pagar?: number
+          numero_factura: string
+          observaciones?: string
+          prioridad?: Database["public"]["Enums"]["prioridad"]
+          razon_social: string
+          responsable_pago?: string
+          saldo_real_pendiente?: number
+          semana_id: string
+        }
+        Update: {
+          banco_destino?: string
+          codigo_proveedor?: string
+          created_at?: string
+          cuenta_destino?: string
+          dias_vencidos?: number
+          estado_aprobacion?: Database["public"]["Enums"]["estado_aprobacion"]
+          fecha_programada?: string
+          fecha_vencimiento?: string
+          forma_pago?: Database["public"]["Enums"]["forma_pago"]
+          id?: string
+          monto_a_pagar?: number
+          numero_factura?: string
+          observaciones?: string
+          prioridad?: Database["public"]["Enums"]["prioridad"]
+          razon_social?: string
+          responsable_pago?: string
+          saldo_real_pendiente?: number
+          semana_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lineas_programacion_semana_id_fkey"
+            columns: ["semana_id"]
+            isOneToOne: false
+            referencedRelation: "programaciones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pagos_ejecutados: {
+        Row: {
+          aprobado_por: string
+          banco_destino: string
+          banco_origen: string
+          codigo_proveedor: string
+          created_at: string
+          cuenta_destino: string
+          fecha_pago: string
+          forma_pago: Database["public"]["Enums"]["forma_pago"]
+          id: string
+          monto_pagado: number
+          numero_factura: string
+          numero_linea: number
+          numero_transferencia: string
+          observaciones: string
+          razon_social: string
+          responsable: string
+          saldo_pendiente: number
+        }
+        Insert: {
+          aprobado_por?: string
+          banco_destino?: string
+          banco_origen?: string
+          codigo_proveedor: string
+          created_at?: string
+          cuenta_destino?: string
+          fecha_pago?: string
+          forma_pago?: Database["public"]["Enums"]["forma_pago"]
+          id?: string
+          monto_pagado?: number
+          numero_factura: string
+          numero_linea?: number
+          numero_transferencia?: string
+          observaciones?: string
+          razon_social: string
+          responsable?: string
+          saldo_pendiente?: number
+        }
+        Update: {
+          aprobado_por?: string
+          banco_destino?: string
+          banco_origen?: string
+          codigo_proveedor?: string
+          created_at?: string
+          cuenta_destino?: string
+          fecha_pago?: string
+          forma_pago?: Database["public"]["Enums"]["forma_pago"]
+          id?: string
+          monto_pagado?: number
+          numero_factura?: string
+          numero_linea?: number
+          numero_transferencia?: string
+          observaciones?: string
+          razon_social?: string
+          responsable?: string
+          saldo_pendiente?: number
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          activo: boolean
+          created_at: string
+          email: string
+          id: string
+          nombre: string
+          ultimo_acceso: string | null
+        }
+        Insert: {
+          activo?: boolean
+          created_at?: string
+          email?: string
+          id: string
+          nombre?: string
+          ultimo_acceso?: string | null
+        }
+        Update: {
+          activo?: boolean
+          created_at?: string
+          email?: string
+          id?: string
+          nombre?: string
+          ultimo_acceso?: string | null
+        }
+        Relationships: []
+      }
+      programaciones: {
+        Row: {
+          aprobado_por: string
+          created_at: string
+          estado_semana: Database["public"]["Enums"]["estado_semana"]
+          fecha_aprobacion: string | null
+          id: string
+          limite_disponible: number
+          semana: string
+          updated_at: string
+        }
+        Insert: {
+          aprobado_por?: string
+          created_at?: string
+          estado_semana?: Database["public"]["Enums"]["estado_semana"]
+          fecha_aprobacion?: string | null
+          id?: string
+          limite_disponible?: number
+          semana: string
+          updated_at?: string
+        }
+        Update: {
+          aprobado_por?: string
+          created_at?: string
+          estado_semana?: Database["public"]["Enums"]["estado_semana"]
+          fecha_aprobacion?: string | null
+          id?: string
+          limite_disponible?: number
+          semana?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      proveedores: {
+        Row: {
+          activo: boolean
+          banco: string
+          codigo: string
+          created_at: string
+          email_cobros: string
+          fecha_verificacion: string | null
+          id: string
+          numero_cuenta: string
+          razon_social: string
+          ruc_ci: string
+          telefono: string
+          tipo_cuenta: Database["public"]["Enums"]["tipo_cuenta"]
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          banco?: string
+          codigo: string
+          created_at?: string
+          email_cobros?: string
+          fecha_verificacion?: string | null
+          id?: string
+          numero_cuenta?: string
+          razon_social: string
+          ruc_ci: string
+          telefono?: string
+          tipo_cuenta?: Database["public"]["Enums"]["tipo_cuenta"]
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          banco?: string
+          codigo?: string
+          created_at?: string
+          email_cobros?: string
+          fecha_verificacion?: string | null
+          id?: string
+          numero_cuenta?: string
+          razon_social?: string
+          ruc_ci?: string
+          telefono?: string
+          tipo_cuenta?: Database["public"]["Enums"]["tipo_cuenta"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_role: {
+        Args: { _user_id: string }
+        Returns: Database["public"]["Enums"]["app_role"]
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "ADMIN" | "TESORERO" | "APROBADOR" | "CONSULTA"
+      estado_aprobacion:
+        | "PENDIENTE"
+        | "APROBADO"
+        | "RECHAZADO"
+        | "EN_PROCESO"
+        | "PAGADO"
+      estado_factura: "PAGADA_COMPLETA" | "ABONO_PARCIAL" | "PENDIENTE"
+      estado_semana: "BORRADOR" | "APROBADO" | "ARCHIVADO"
+      forma_pago: "TRANSFERENCIA" | "CHEQUE" | "EFECTIVO" | "ACH"
+      prioridad: "CRITICO" | "URGENTE" | "PROXIMO" | "AL_DIA"
+      tipo_cuenta: "CORRIENTE" | "AHORROS"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +564,20 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["ADMIN", "TESORERO", "APROBADOR", "CONSULTA"],
+      estado_aprobacion: [
+        "PENDIENTE",
+        "APROBADO",
+        "RECHAZADO",
+        "EN_PROCESO",
+        "PAGADO",
+      ],
+      estado_factura: ["PAGADA_COMPLETA", "ABONO_PARCIAL", "PENDIENTE"],
+      estado_semana: ["BORRADOR", "APROBADO", "ARCHIVADO"],
+      forma_pago: ["TRANSFERENCIA", "CHEQUE", "EFECTIVO", "ACH"],
+      prioridad: ["CRITICO", "URGENTE", "PROXIMO", "AL_DIA"],
+      tipo_cuenta: ["CORRIENTE", "AHORROS"],
+    },
   },
 } as const
