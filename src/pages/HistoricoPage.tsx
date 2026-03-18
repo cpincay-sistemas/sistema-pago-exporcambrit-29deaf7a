@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useAppStore } from "@/store/app-store";
+import { useHistorico } from "@/hooks/useSupabaseData";
 import { formatUSD, formatDate } from "@/lib/business-rules";
 import { Input } from "@/components/ui/input";
 import { Search, ChevronLeft, ChevronRight } from "lucide-react";
@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 const PAGE_SIZE = 25;
 
 export default function HistoricoPage() {
-  const { historico } = useAppStore();
+  const { data: historico = [] } = useHistorico();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
 
@@ -19,12 +19,12 @@ export default function HistoricoPage() {
         const q = search.toLowerCase();
         return h.razon_social.toLowerCase().includes(q) || h.numero_factura.toLowerCase().includes(q) || h.semana.includes(q);
       })
-      .sort((a, b) => b.fecha_archivo.localeCompare(a.fecha_archivo));
+      .sort((a, b) => (b.fecha_archivo || "").localeCompare(a.fecha_archivo || ""));
   }, [historico, search]);
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
-  const totalPagado = filtered.reduce((s, h) => s + h.monto_pagado, 0);
+  const totalPagado = filtered.reduce((s, h) => s + Number(h.monto_pagado), 0);
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -53,7 +53,7 @@ export default function HistoricoPage() {
                   <td className="px-4 py-3 tabular-nums">{formatDate(h.fecha_pago)}</td>
                   <td className="px-4 py-3">{h.razon_social}</td>
                   <td className="px-4 py-3 tabular-nums text-xs">{h.numero_factura}</td>
-                  <td className="px-4 py-3 tabular-nums text-right font-semibold">{formatUSD(h.monto_pagado)}</td>
+                  <td className="px-4 py-3 tabular-nums text-right font-semibold">{formatUSD(Number(h.monto_pagado))}</td>
                   <td className="px-4 py-3 text-xs">{h.forma_pago}</td>
                   <td className="px-4 py-3 text-xs">{h.banco_origen}</td>
                   <td className="px-4 py-3 tabular-nums text-xs font-medium">{h.numero_transferencia}</td>
