@@ -1,17 +1,11 @@
 import { NavLink, Outlet } from "react-router-dom";
 import {
-  LayoutDashboard,
-  FileDown,
-  CalendarDays,
-  CheckCircle2,
-  BookOpen,
-  Wallet,
-  Building2,
-  Settings,
-  Menu,
-  X,
+  LayoutDashboard, FileDown, CalendarDays, CheckCircle2,
+  BookOpen, Wallet, Building2, Settings, Menu, X, LogOut,
 } from "lucide-react";
 import { useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { Badge } from "@/components/ui/badge";
 
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
@@ -21,20 +15,35 @@ const navItems = [
   { to: "/historico", icon: BookOpen, label: "Histórico" },
   { to: "/saldo-facturas", icon: Wallet, label: "Saldo Facturas" },
   { to: "/proveedores", icon: Building2, label: "Proveedores" },
-  { to: "/configuracion", icon: Settings, label: "Configuración" },
+  { to: "/configuracion", icon: Settings, label: "Configuración", adminOnly: true },
 ];
+
+const roleBadgeColors: Record<string, string> = {
+  ADMIN: "bg-purple-100 text-purple-800",
+  TESORERO: "bg-blue-100 text-blue-800",
+  APROBADOR: "bg-green-100 text-green-800",
+  CONSULTA: "bg-muted text-muted-foreground",
+};
 
 export default function AppLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { profile, role, signOut, isAdmin } = useAuth();
+
+  const visibleNav = navItems.filter((item) => {
+    if ('adminOnly' in item && item.adminOnly) return isAdmin();
+    return true;
+  });
+
+  const initials = profile?.nombre
+    ? profile.nombre.split(" ").map((n) => n[0]).join("").substring(0, 2).toUpperCase()
+    : "??";
 
   return (
     <div className="flex h-screen overflow-hidden">
-      {/* Mobile overlay */}
       {mobileOpen && (
         <div className="fixed inset-0 z-40 bg-foreground/30 lg:hidden" onClick={() => setMobileOpen(false)} />
       )}
 
-      {/* Sidebar */}
       <aside
         className={`fixed lg:static z-50 inset-y-0 left-0 w-60 bg-sidebar flex flex-col transition-transform duration-300 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
@@ -54,7 +63,7 @@ export default function AppLayout() {
         </div>
 
         <nav className="flex-1 py-3 px-3 space-y-0.5 overflow-y-auto">
-          {navItems.map((item) => (
+          {visibleNav.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
@@ -79,24 +88,32 @@ export default function AppLayout() {
         </div>
       </aside>
 
-      {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Top bar */}
         <header className="h-14 border-b bg-card flex items-center px-4 lg:px-6 shrink-0">
           <button className="lg:hidden mr-3 text-foreground" onClick={() => setMobileOpen(true)}>
             <Menu size={22} />
           </button>
           <div className="flex-1" />
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            {role && (
+              <Badge variant="outline" className={`text-[10px] ${roleBadgeColors[role] || ""}`}>
+                {role}
+              </Badge>
+            )}
             <div className="h-8 w-8 rounded bg-primary/10 flex items-center justify-center">
-              <span className="text-xs font-medium text-primary">MT</span>
+              <span className="text-xs font-medium text-primary">{initials}</span>
             </div>
-            <span className="text-sm font-medium hidden sm:block">María Torres</span>
-            <span className="text-xs text-muted-foreground hidden sm:block">Tesorero</span>
+            <span className="text-sm font-medium hidden sm:block">{profile?.nombre || "Usuario"}</span>
+            <button
+              onClick={signOut}
+              className="text-muted-foreground hover:text-foreground transition-colors"
+              title="Cerrar sesión"
+            >
+              <LogOut size={18} />
+            </button>
           </div>
         </header>
 
-        {/* Page content */}
         <main className="flex-1 overflow-y-auto p-4 lg:p-6">
           <Outlet />
         </main>

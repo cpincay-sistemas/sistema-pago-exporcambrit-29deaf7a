@@ -1,60 +1,57 @@
-import { useAppStore } from "@/store/app-store";
+import { useFacturas, useHistorico } from "@/hooks/useSupabaseData";
 import { KPICard } from "@/components/KPICard";
 import { PrioridadBadge } from "@/components/PrioridadBadge";
-import { formatUSD, formatDate, getCurrentISOWeek } from "@/lib/business-rules";
+import { formatUSD, formatDate, getCurrentISOWeek, calcularDiasVencidos, calcularPrioridad } from "@/lib/business-rules";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, CartesianGrid } from "recharts";
+import type { Prioridad } from "@/types";
 
 const CHART_COLORS = ["hsl(0,100%,38%)", "hsl(27,92%,47%)", "hsl(45,100%,37%)", "hsl(100,41%,24%)"];
 
 export default function DashboardPage() {
-  const { facturas, historico } = useAppStore();
+  const { data: facturas = [] } = useFacturas();
+  const { data: historico = [] } = useHistorico();
   const currentWeek = getCurrentISOWeek();
 
-  // Calculate real balances
   const getReal = (nf: string) => {
     const f = facturas.find((x) => x.numero_factura === nf);
     if (!f) return 0;
-    const abonado = historico.filter((h) => h.numero_factura === nf).reduce((s, h) => s + h.monto_pagado, 0);
-    return f.saldo_total - abonado;
+    const abonado = historico.filter((h) => h.numero_factura === nf).reduce((s, h) => s + Number(h.monto_pagado), 0);
+    return Number(f.saldo_total) - abonado;
   };
 
-  const activasConSaldo = facturas.filter((f) => getReal(f.numero_factura) > 0);
+  const enriched = facturas.map((f) => ({
+    ...f,
+    dias_vencidos: calcularDiasVencidos(f.fecha_vencimiento),
+    prioridad: calcularPrioridad(calcularDiasVencidos(f.fecha_vencimiento)) as Prioridad,
+  }));
+
+  const activasConSaldo = enriched.filter((f) => getReal(f.numero_factura) > 0);
   const totalPendiente = activasConSaldo.reduce((s, f) => s + getReal(f.numero_factura), 0);
   const vencidoCritico = activasConSaldo.filter((f) => f.prioridad === "CRITICO").reduce((s, f) => s + getReal(f.numero_factura), 0);
-  const pagadoEstaSemana = historico.filter((h) => h.semana === currentWeek).reduce((s, h) => s + h.monto_pagado, 0);
+  const pagadoEstaSemana = historico.filter((h) => h.semana === currentWeek).reduce((s, h) => s + Number(h.monto_pagado), 0);
   const facturasOver30 = activasConSaldo.filter((f) => f.dias_vencidos >= 30).length;
 
-  // Priority distribution
   const prioridadData = (["CRITICO", "URGENTE", "PROXIMO", "AL_DIA"] as const).map((p) => ({
     name: p.replace("_", " "),
     value: activasConSaldo.filter((f) => f.prioridad === p).length,
     amount: activasConSaldo.filter((f) => f.prioridad === p).reduce((s, f) => s + getReal(f.numero_factura), 0),
   }));
 
-  // Top 5 proveedores
   const provMap = new Map<string, number>();
   activasConSaldo.forEach((f) => {
     provMap.set(f.razon_social, (provMap.get(f.razon_social) || 0) + getReal(f.numero_factura));
   });
-  const pieData = [...provMap.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5)
+  const pieData = [...provMap.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5)
     .map(([name, value]) => ({ name: name.length > 15 ? name.substring(0, 15) + "…" : name, value }));
-
   const PIE_COLORS = ["#2E75B6", "#1F3864", "#E36B0A", "#375623", "#BF8F00"];
 
-  // Weekly history (mock last 8 weeks)
   const weeklyData = Array.from({ length: 8 }, (_, i) => {
     const w = `W${String(parseInt(currentWeek.split("W")[1]) - 7 + i).padStart(2, "0")}`;
-    const total = historico.filter((h) => h.semana.endsWith(w)).reduce((s, h) => s + h.monto_pagado, 0);
+    const total = historico.filter((h) => h.semana.endsWith(w)).reduce((s, h) => s + Number(h.monto_pagado), 0);
     return { semana: w, total };
   });
 
-  // Critical alerts
-  const alertas = activasConSaldo
-    .filter((f) => f.prioridad === "CRITICO")
-    .sort((a, b) => b.dias_vencidos - a.dias_vencidos)
-    .slice(0, 10);
+  const alertas = activasConSaldo.filter((f) => f.prioridad === "CRITICO").sort((a, b) => b.dias_vencidos - a.dias_vencidos).slice(0, 10);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -63,7 +60,6 @@ export default function DashboardPage() {
         <p className="text-sm text-muted-foreground">Semana {currentWeek} — Visión general de cuentas por pagar</p>
       </div>
 
-      {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard title="CxP Total Pendiente" value={totalPendiente} variant="default" />
         <KPICard title="Vencido Crítico" value={vencidoCritico} variant="danger" subtitle={`${alertas.length} facturas`} />
@@ -71,9 +67,7 @@ export default function DashboardPage() {
         <KPICard title="Facturas > 30 días" value={String(facturasOver30)} variant="warning" subtitle="requieren atención" />
       </div>
 
-      {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Bar chart */}
         <div className="bg-card rounded-lg p-5 card-shadow">
           <h3 className="text-sm font-semibold mb-4">Distribución por Prioridad</h3>
           <ResponsiveContainer width="100%" height={220}>
@@ -82,15 +76,11 @@ export default function DashboardPage() {
               <YAxis tick={{ fontSize: 11 }} />
               <Tooltip formatter={(v: number) => formatUSD(v)} />
               <Bar dataKey="amount" radius={[4, 4, 0, 0]}>
-                {prioridadData.map((_, i) => (
-                  <Cell key={i} fill={CHART_COLORS[i]} />
-                ))}
+                {prioridadData.map((_, i) => (<Cell key={i} fill={CHART_COLORS[i]} />))}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
-
-        {/* Line chart */}
         <div className="bg-card rounded-lg p-5 card-shadow">
           <h3 className="text-sm font-semibold mb-4">Pagos por Semana</h3>
           <ResponsiveContainer width="100%" height={220}>
@@ -103,23 +93,17 @@ export default function DashboardPage() {
             </LineChart>
           </ResponsiveContainer>
         </div>
-
-        {/* Pie chart */}
         <div className="bg-card rounded-lg p-5 card-shadow">
           <h3 className="text-sm font-semibold mb-4">CxP por Proveedor (Top 5)</h3>
           <ResponsiveContainer width="100%" height={220}>
             <PieChart>
               <Pie data={pieData} cx="50%" cy="50%" outerRadius={80} dataKey="value" label={({ name }) => name}>
-                {pieData.map((_, i) => (
-                  <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-                ))}
+                {pieData.map((_, i) => (<Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />))}
               </Pie>
               <Tooltip formatter={(v: number) => formatUSD(v)} />
             </PieChart>
           </ResponsiveContainer>
         </div>
-
-        {/* Semáforo */}
         <div className="bg-card rounded-lg p-5 card-shadow">
           <h3 className="text-sm font-semibold mb-4">Resumen Ejecutivo</h3>
           <div className="space-y-3">
@@ -143,7 +127,6 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Alertas */}
       {alertas.length > 0 && (
         <div className="bg-card rounded-lg card-shadow overflow-hidden">
           <div className="px-5 py-3 border-b bg-danger-light">

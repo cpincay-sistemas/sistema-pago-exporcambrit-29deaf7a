@@ -1,28 +1,29 @@
 import { useState, useMemo } from "react";
-import { useAppStore } from "@/store/app-store";
+import { useFacturas, useHistorico } from "@/hooks/useSupabaseData";
 import { formatUSD, formatDate, calcularDiasVencidos } from "@/lib/business-rules";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import type { EstadoFactura } from "@/types";
 
 export default function SaldoFacturasPage() {
-  const { facturas, historico } = useAppStore();
+  const { data: facturas = [] } = useFacturas();
+  const { data: historico = [] } = useHistorico();
   const [search, setSearch] = useState("");
 
   const saldos = useMemo(() => {
     return facturas.map((f) => {
-      const totalAbonado = historico.filter((h) => h.numero_factura === f.numero_factura).reduce((s, h) => s + h.monto_pagado, 0);
-      const saldoReal = f.saldo_total - totalAbonado;
+      const totalAbonado = historico.filter((h) => h.numero_factura === f.numero_factura).reduce((s, h) => s + Number(h.monto_pagado), 0);
+      const saldoReal = Number(f.saldo_total) - totalAbonado;
       const estado: EstadoFactura = saldoReal <= 0 ? "PAGADA_COMPLETA" : totalAbonado > 0 ? "ABONO_PARCIAL" : "PENDIENTE";
       return {
         numero_factura: f.numero_factura,
         proveedor: f.razon_social,
         fecha_vencimiento: f.fecha_vencimiento,
         dias_vencidos: calcularDiasVencidos(f.fecha_vencimiento),
-        monto_original: f.saldo_total,
+        monto_original: Number(f.saldo_total),
         total_abonado: totalAbonado,
         saldo_real_pendiente: Math.max(0, saldoReal),
-        porcentaje_pagado: f.saldo_total > 0 ? (totalAbonado / f.saldo_total) * 100 : 0,
+        porcentaje_pagado: Number(f.saldo_total) > 0 ? (totalAbonado / Number(f.saldo_total)) * 100 : 0,
         estado,
       };
     });
@@ -49,8 +50,6 @@ export default function SaldoFacturasPage() {
         <h2 className="text-xl font-semibold text-teal">Saldo de Facturas</h2>
         <p className="text-sm text-muted-foreground">Control de abonos parciales y estado real de cada factura</p>
       </div>
-
-      {/* Summary */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {[
           { label: "Total Facturas", value: String(filtered.length) },
@@ -66,12 +65,10 @@ export default function SaldoFacturasPage() {
           </div>
         ))}
       </div>
-
       <div className="relative max-w-sm">
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
         <Input placeholder="Buscar factura o proveedor…" className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
-
       <div className="bg-card rounded-lg card-shadow overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -100,6 +97,9 @@ export default function SaldoFacturasPage() {
                   </td>
                 </tr>
               ))}
+              {filtered.length === 0 && (
+                <tr><td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">No hay facturas</td></tr>
+              )}
             </tbody>
           </table>
         </div>

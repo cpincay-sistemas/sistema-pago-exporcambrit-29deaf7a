@@ -1,54 +1,51 @@
-import { useState } from "react";
-import { useAppStore } from "@/store/app-store";
+import { useState, useMemo } from "react";
+import { useProveedores, useAddProveedor, useUpdateProveedor } from "@/hooks/useSupabaseData";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Plus, Pencil, Search } from "lucide-react";
-import type { Proveedor, TipoCuenta } from "@/types";
 import { validarRUC, formatDate } from "@/lib/business-rules";
 import { toast } from "sonner";
 
 export default function ProveedoresPage() {
-  const { proveedores, addProveedor, updateProveedor } = useAppStore();
+  const { data: proveedores = [] } = useProveedores();
+  const addProveedor = useAddProveedor();
+  const updateProveedor = useUpdateProveedor();
+  const { canWrite } = useAuth();
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editing, setEditing] = useState<Proveedor | null>(null);
+  const [editing, setEditing] = useState<any>(null);
 
-  const filtered = proveedores.filter((p) => {
-    if (!search) return true;
+  const filtered = useMemo(() => {
+    if (!search) return proveedores;
     const q = search.toLowerCase();
-    return p.razon_social.toLowerCase().includes(q) || p.ruc_ci.includes(q) || p.codigo.toLowerCase().includes(q);
-  });
+    return proveedores.filter((p) =>
+      p.razon_social.toLowerCase().includes(q) || p.ruc_ci.includes(q) || p.codigo.toLowerCase().includes(q)
+    );
+  }, [proveedores, search]);
 
-  const handleSave = (data: Partial<Proveedor>) => {
+  const handleSave = async (data: any) => {
     if (!data.ruc_ci || !validarRUC(data.ruc_ci)) {
       toast.error("RUC inválido. Debe tener 13 dígitos y terminar en 001.");
       return;
     }
-    if (editing) {
-      updateProveedor(editing.id, data);
-      toast.success("Proveedor actualizado");
-    } else {
-      const newP: Proveedor = {
-        id: crypto.randomUUID(),
-        codigo: `PROV-${String(proveedores.length + 1).padStart(3, "0")}`,
-        ruc_ci: data.ruc_ci || "",
-        razon_social: data.razon_social || "",
-        banco: data.banco || "",
-        numero_cuenta: data.numero_cuenta || "",
-        tipo_cuenta: (data.tipo_cuenta as TipoCuenta) || "CORRIENTE",
-        email_cobros: data.email_cobros || "",
-        telefono: data.telefono || "",
-        fecha_verificacion: new Date().toISOString().split("T")[0],
-        activo: true,
-      };
-      addProveedor(newP);
-      toast.success("Proveedor creado");
+    try {
+      if (editing) {
+        await updateProveedor.mutateAsync({ id: editing.id, ...data });
+        toast.success("Proveedor actualizado");
+      } else {
+        const codigo = `PROV-${String(proveedores.length + 1).padStart(3, "0")}`;
+        await addProveedor.mutateAsync({ codigo, ...data });
+        toast.success("Proveedor creado");
+      }
+      setDialogOpen(false);
+      setEditing(null);
+    } catch (err: any) {
+      toast.error(err.message || "Error al guardar");
     }
-    setDialogOpen(false);
-    setEditing(null);
   };
 
   return (
@@ -58,17 +55,19 @@ export default function ProveedoresPage() {
           <h2 className="text-xl font-semibold text-teal">Proveedores</h2>
           <p className="text-sm text-muted-foreground">{proveedores.filter((p) => p.activo).length} activos de {proveedores.length} registrados</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) setEditing(null); }}>
-          <DialogTrigger asChild>
-            <Button size="sm" className="gap-1.5"><Plus size={15} /> Nuevo Proveedor</Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>{editing ? "Editar" : "Nuevo"} Proveedor</DialogTitle>
-            </DialogHeader>
-            <ProveedorForm initial={editing} onSave={handleSave} onCancel={() => { setDialogOpen(false); setEditing(null); }} />
-          </DialogContent>
-        </Dialog>
+        {canWrite() && (
+          <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) setEditing(null); }}>
+            <DialogTrigger asChild>
+              <Button size="sm" className="gap-1.5"><Plus size={15} /> Nuevo Proveedor</Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle>{editing ? "Editar" : "Nuevo"} Proveedor</DialogTitle>
+              </DialogHeader>
+              <ProveedorForm initial={editing} onSave={handleSave} onCancel={() => { setDialogOpen(false); setEditing(null); }} />
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
       <div className="relative max-w-sm">
@@ -96,19 +95,24 @@ export default function ProveedoresPage() {
                   <td className="px-4 py-3 tabular-nums text-xs">{p.numero_cuenta}</td>
                   <td className="px-4 py-3 text-xs">{p.tipo_cuenta}</td>
                   <td className="px-4 py-3 text-xs">{p.email_cobros}</td>
-                  <td className="px-4 py-3 tabular-nums">{formatDate(p.fecha_verificacion)}</td>
+                  <td className="px-4 py-3 tabular-nums">{p.fecha_verificacion ? formatDate(p.fecha_verificacion) : "—"}</td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${p.activo ? "status-pagada" : "status-pendiente"}`}>
                       {p.activo ? "Activo" : "Inactivo"}
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <Button variant="ghost" size="sm" onClick={() => { setEditing(p); setDialogOpen(true); }}>
-                      <Pencil size={14} />
-                    </Button>
+                    {canWrite() && (
+                      <Button variant="ghost" size="sm" onClick={() => { setEditing(p); setDialogOpen(true); }}>
+                        <Pencil size={14} />
+                      </Button>
+                    )}
                   </td>
                 </tr>
               ))}
+              {filtered.length === 0 && (
+                <tr><td colSpan={10} className="px-4 py-8 text-center text-muted-foreground">No hay proveedores registrados</td></tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -117,7 +121,7 @@ export default function ProveedoresPage() {
   );
 }
 
-function ProveedorForm({ initial, onSave, onCancel }: { initial: Proveedor | null; onSave: (d: Partial<Proveedor>) => void; onCancel: () => void }) {
+function ProveedorForm({ initial, onSave, onCancel }: { initial: any; onSave: (d: any) => void; onCancel: () => void }) {
   const [form, setForm] = useState({
     ruc_ci: initial?.ruc_ci || "",
     razon_social: initial?.razon_social || "",
