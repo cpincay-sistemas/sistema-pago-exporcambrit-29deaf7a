@@ -6,9 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Plus, Pencil, Search } from "lucide-react";
+import { Plus, Pencil, Search, Upload } from "lucide-react";
 import { validarRUC, formatDate } from "@/lib/business-rules";
 import { toast } from "sonner";
+import ImportProveedoresDialog from "@/components/ImportProveedoresDialog";
 
 export default function ProveedoresPage() {
   const { data: proveedores = [] } = useProveedores();

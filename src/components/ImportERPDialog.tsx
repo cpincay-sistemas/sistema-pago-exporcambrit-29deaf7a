@@ -34,21 +34,18 @@ interface ImportResult {
   inserted: number;
   duplicates: number;
   errors: ValidationError[];
-  manualReview: { row: number; proveedor: string }[];
+  created_providers: string[];
 }
 
 type Step = "upload" | "preview" | "importing" | "result";
 
 const COLUMN_MAP: Record<string, keyof ImportRow> = {
-  // proveedor / razon social
   proveedor: "proveedor",
   razon_social: "proveedor",
   supplier: "proveedor",
-  // codigo proveedor
   proveedor_codigo: "codigo_proveedor",
   codigo_proveedor: "codigo_proveedor",
   codigo: "codigo_proveedor",
-  // factura / documento
   factura: "factura",
   numero_factura: "factura",
   invoice: "factura",
@@ -56,26 +53,20 @@ const COLUMN_MAP: Record<string, keyof ImportRow> = {
   no_documento: "factura",
   numero_documento: "factura",
   documento: "factura",
-  // motivo
   motivo: "motivo",
   descripcion: "motivo",
   description: "motivo",
   concepto: "motivo",
-  // fechas
   fecha_emision: "fecha_emision",
   fecha_de_emision: "fecha_emision",
   emision: "fecha_emision",
-  emission_date: "fecha_emision",
   fecha_vencimiento: "fecha_vencimiento",
   vencimiento: "fecha_vencimiento",
-  due_date: "fecha_vencimiento",
-  // saldo
   saldo: "saldo",
   saldo_total: "saldo",
   monto: "saldo",
   amount: "saldo",
   total: "saldo",
-  // extras
   doc_interno: "doc_interno",
   doc__interno: "doc_interno",
   documento_interno: "doc_interno",
@@ -99,6 +90,38 @@ function normalizeColumnName(name: string): string {
     .replace(/^_|_$/g, "");
 }
 
+function parseLocalizedNumber(val: any): number {
+  if (val === null || val === undefined || val === "") return 0;
+  if (typeof val === "number") return val;
+  let s = String(val).trim().replace(/[$\s]/g, "");
+  if (!s) return 0;
+  const negative = s.startsWith("-");
+  if (negative) s = s.substring(1);
+  // Detect format: if both . and , exist, the last one is the decimal separator
+  const lastDot = s.lastIndexOf(".");
+  const lastComma = s.lastIndexOf(",");
+  if (lastDot > -1 && lastComma > -1) {
+    if (lastComma > lastDot) {
+      // 9.820,80 → remove dots, replace comma with dot
+      s = s.replace(/\./g, "").replace(",", ".");
+    } else {
+      // 9,820.80 → remove commas
+      s = s.replace(/,/g, "");
+    }
+  } else if (lastComma > -1) {
+    // Could be 9820,80 (decimal) or 9,820 (thousands)
+    const afterComma = s.substring(lastComma + 1);
+    if (afterComma.length <= 2) {
+      s = s.replace(",", ".");
+    } else {
+      s = s.replace(/,/g, "");
+    }
+  }
+  const num = parseFloat(s);
+  if (isNaN(num)) return 0;
+  return negative ? -num : num;
+}
+
 function parseDate(val: any): string | null {
   if (!val) return null;
   if (val instanceof Date) {
@@ -108,20 +131,9 @@ function parseDate(val: any): string | null {
     return `${y}-${m}-${d}`;
   }
   const s = String(val).trim();
-  // Try YYYY-MM-DD
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-  // Try DD/MM/YYYY or DD-MM-YYYY
   const m1 = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
   if (m1) return `${m1[3]}-${m1[2].padStart(2, "0")}-${m1[1].padStart(2, "0")}`;
-  // Try MM/DD/YYYY
-  const m2 = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
-  if (m2) {
-    const parsed = new Date(s);
-    if (!isNaN(parsed.getTime())) {
-      return parsed.toISOString().split("T")[0];
-    }
-  }
-  // Try Excel serial number
   if (/^\d{5}$/.test(s)) {
     const d = new Date((parseInt(s) - 25569) * 86400000);
     if (!isNaN(d.getTime())) return d.toISOString().split("T")[0];
@@ -175,7 +187,6 @@ export default function ImportERPDialog({ open, onOpenChange }: { open: boolean;
           return;
         }
 
-        // Map columns
         const headers = Object.keys(raw[0]);
         const colMapping: Record<string, keyof ImportRow> = {};
         for (const h of headers) {
@@ -190,7 +201,7 @@ export default function ImportERPDialog({ open, onOpenChange }: { open: boolean;
           }
           row.fecha_emision = parseDate(row.fecha_emision) || String(row.fecha_emision);
           row.fecha_vencimiento = parseDate(row.fecha_vencimiento) || String(row.fecha_vencimiento);
-          row.saldo = parseFloat(String(row.saldo).replace(/[,$]/g, "")) || 0;
+          row.saldo = parseLocalizedNumber(row.saldo);
           row.proveedor = String(row.proveedor || "").trim();
           row.codigo_proveedor = String(row.codigo_proveedor || "").trim();
           row.factura = String(row.factura || "").trim();
@@ -216,16 +227,15 @@ export default function ImportERPDialog({ open, onOpenChange }: { open: boolean;
     setProgress(0);
 
     const errors: ValidationError[] = [];
-    const manualReview: { row: number; proveedor: string }[] = [];
+    const createdProviders: string[] = [];
     const validRows: any[] = [];
 
-    // Fetch existing proveedores and facturas
     const [provRes, factRes] = await Promise.all([
-      supabase.from("proveedores").select("codigo, razon_social"),
+      supabase.from("proveedores").select("codigo, razon_social, ruc_ci"),
       supabase.from("facturas").select("numero_factura, codigo_proveedor"),
     ]);
     const proveedores = provRes.data || [];
-    const existingFacturas = new Set((factRes.data || []).map((f) => `${f.numero_factura}|${f.codigo_proveedor}`));
+    const existingFacturas = new Set((factRes.data || []).map((f) => `${f.codigo_proveedor}|${f.numero_factura}`));
 
     const provByName = new Map<string, { codigo: string; razon_social: string }>();
     const provByCodigo = new Map<string, { codigo: string; razon_social: string }>();
@@ -242,31 +252,46 @@ export default function ImportERPDialog({ open, onOpenChange }: { open: boolean;
       if (!r.factura) { errors.push({ row: rowNum, field: "factura", message: "Factura vacía" }); hasError = true; }
       if (!r.fecha_emision || !isValidDate(r.fecha_emision)) { errors.push({ row: rowNum, field: "fecha_emision", message: "Fecha emisión inválida" }); hasError = true; }
       if (!r.fecha_vencimiento || !isValidDate(r.fecha_vencimiento)) { errors.push({ row: rowNum, field: "fecha_vencimiento", message: "Fecha vencimiento inválida" }); hasError = true; }
-      if (isNaN(r.saldo) || r.saldo <= 0) { errors.push({ row: rowNum, field: "saldo", message: "Saldo inválido" }); hasError = true; }
+      // saldo: accept any number including negatives and zero
+      if (isNaN(r.saldo)) { errors.push({ row: rowNum, field: "saldo", message: "Saldo inválido" }); hasError = true; }
 
-      if (hasError) { setProgress(((i + 1) / rows.length) * 100); continue; }
+      if (hasError) { setProgress(((i + 1) / rows.length) * 50); continue; }
 
-      // Look up proveedor by codigo first, then by name
-      const prov = (r.codigo_proveedor ? provByCodigo.get(r.codigo_proveedor) : null) 
-        || provByName.get(r.proveedor.toLowerCase());
-      
-      if (!prov && !r.proveedor && !r.codigo_proveedor) {
-        errors.push({ row: rowNum, field: "proveedor", message: "Proveedor vacío" });
-        setProgress(((i + 1) / rows.length) * 100);
-        continue;
-      }
-      
+      // Look up proveedor: by codigo first, then by razon_social
+      let prov = r.codigo_proveedor ? provByCodigo.get(r.codigo_proveedor) : null;
+      if (!prov) prov = r.proveedor ? provByName.get(r.proveedor.toLowerCase()) : null;
+
+      // If not found and we have enough info, auto-create
       if (!prov) {
-        manualReview.push({ row: rowNum, proveedor: r.proveedor || r.codigo_proveedor });
-        setProgress(((i + 1) / rows.length) * 100);
-        continue;
+        const codigo = r.codigo_proveedor || `PROV-${String(proveedores.length + createdProviders.length + 1).padStart(3, "0")}`;
+        const razon = r.proveedor || codigo;
+        if (!razon && !codigo) {
+          errors.push({ row: rowNum, field: "proveedor", message: "Proveedor vacío" });
+          setProgress(((i + 1) / rows.length) * 50);
+          continue;
+        }
+        const { error: insertErr } = await supabase.from("proveedores").insert({
+          codigo,
+          razon_social: razon,
+          ruc_ci: "0000000000001",
+          activo: true,
+        });
+        if (insertErr) {
+          errors.push({ row: rowNum, field: "proveedor", message: `Error creando proveedor: ${insertErr.message}` });
+          setProgress(((i + 1) / rows.length) * 50);
+          continue;
+        }
+        prov = { codigo, razon_social: razon };
+        provByCodigo.set(codigo, prov);
+        provByName.set(razon.toLowerCase(), prov);
+        createdProviders.push(razon);
       }
 
-      // Check duplicate
-      const key = `${r.factura}|${prov.codigo}`;
+      // Duplicate check: codigo_proveedor + numero_factura
+      const key = `${prov.codigo}|${r.factura}`;
       if (existingFacturas.has(key)) {
-        errors.push({ row: rowNum, field: "factura", message: `Factura duplicada: ${r.factura}` });
-        setProgress(((i + 1) / rows.length) * 100);
+        errors.push({ row: rowNum, field: "factura", message: `Duplicada: ${prov.codigo} + ${r.factura}` });
+        setProgress(((i + 1) / rows.length) * 50);
         continue;
       }
 
@@ -287,7 +312,7 @@ export default function ImportERPDialog({ open, onOpenChange }: { open: boolean;
           : `Importado por ${user?.email || "sistema"} el ${new Date().toLocaleString("es-EC")}`,
       });
 
-      setProgress(((i + 1) / rows.length) * 100);
+      setProgress(((i + 1) / rows.length) * 50);
     }
 
     // Insert in batches of 50
@@ -305,9 +330,17 @@ export default function ImportERPDialog({ open, onOpenChange }: { open: boolean;
     }
 
     setProgress(100);
-    setResult({ inserted, duplicates: errors.filter((e) => e.message.includes("duplicada")).length, errors, manualReview });
+    setResult({
+      inserted,
+      duplicates: errors.filter((e) => e.message.includes("Duplicada")).length,
+      errors,
+      created_providers: createdProviders,
+    });
     setStep("result");
-    if (inserted > 0) queryClient.invalidateQueries({ queryKey: ["facturas"] });
+    if (inserted > 0) {
+      queryClient.invalidateQueries({ queryKey: ["facturas"] });
+      queryClient.invalidateQueries({ queryKey: ["proveedores"] });
+    }
   };
 
   return (
@@ -330,7 +363,7 @@ export default function ImportERPDialog({ open, onOpenChange }: { open: boolean;
             <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={handleFile} />
             <div className="text-xs text-muted-foreground space-y-1 w-full">
               <p className="font-medium">Columnas soportadas:</p>
-              <p>RAZON SOCIAL, PROVEEDOR CODIGO, N° DOCUMENTO, MOTIVO, FECHA DE EMISION, FECHA VENCIMIENTO, SALDO TOTAL</p>
+              <p>PERIODO, PROVEEDOR CODIGO, RAZON SOCIAL, N° DOCUMENTO, MOTIVO, DOC. INTERNO, OBSERVACIONES, FECHA DE EMISION, FECHA VENCIMIENTO, DIAS CREDITO, SALDO TOTAL</p>
             </div>
           </div>
         )}
@@ -349,9 +382,9 @@ export default function ImportERPDialog({ open, onOpenChange }: { open: boolean;
                 <thead>
                   <tr className="border-b bg-muted/50">
                     <th className="px-3 py-2 text-left">#</th>
+                    <th className="px-3 py-2 text-left">Código</th>
                     <th className="px-3 py-2 text-left">Proveedor</th>
                     <th className="px-3 py-2 text-left">Factura</th>
-                    <th className="px-3 py-2 text-left">Motivo</th>
                     <th className="px-3 py-2 text-left">Emisión</th>
                     <th className="px-3 py-2 text-left">Vencimiento</th>
                     <th className="px-3 py-2 text-right">Saldo</th>
@@ -361,9 +394,9 @@ export default function ImportERPDialog({ open, onOpenChange }: { open: boolean;
                   {rows.slice(0, 100).map((r, i) => (
                     <tr key={i} className="border-b last:border-0 hover:bg-muted/20">
                       <td className="px-3 py-1.5 text-muted-foreground">{i + 1}</td>
+                      <td className="px-3 py-1.5">{r.codigo_proveedor}</td>
                       <td className="px-3 py-1.5 max-w-[150px] truncate">{r.proveedor}</td>
                       <td className="px-3 py-1.5">{r.factura}</td>
-                      <td className="px-3 py-1.5 max-w-[120px] truncate">{r.motivo}</td>
                       <td className="px-3 py-1.5">{r.fecha_emision}</td>
                       <td className="px-3 py-1.5">{r.fecha_vencimiento}</td>
                       <td className="px-3 py-1.5 text-right tabular-nums">${r.saldo.toLocaleString("en-US", { minimumFractionDigits: 2 })}</td>
@@ -393,10 +426,10 @@ export default function ImportERPDialog({ open, onOpenChange }: { open: boolean;
                 <p className="text-lg font-bold text-green-700">{result.inserted}</p>
                 <p className="text-xs text-green-600">Importados</p>
               </div>
-              <div className="rounded-lg bg-yellow-500/10 border border-yellow-500/20 p-3 text-center">
-                <AlertTriangle size={20} className="mx-auto text-yellow-600 mb-1" />
-                <p className="text-lg font-bold text-yellow-700">{result.manualReview.length}</p>
-                <p className="text-xs text-yellow-600">Revisión manual</p>
+              <div className="rounded-lg bg-blue-500/10 border border-blue-500/20 p-3 text-center">
+                <CheckCircle2 size={20} className="mx-auto text-blue-600 mb-1" />
+                <p className="text-lg font-bold text-blue-700">{result.created_providers.length}</p>
+                <p className="text-xs text-blue-600">Proveedores creados</p>
               </div>
               <div className="rounded-lg bg-red-500/10 border border-red-500/20 p-3 text-center">
                 <XCircle size={20} className="mx-auto text-red-600 mb-1" />
@@ -405,13 +438,13 @@ export default function ImportERPDialog({ open, onOpenChange }: { open: boolean;
               </div>
             </div>
 
-            {result.manualReview.length > 0 && (
+            {result.created_providers.length > 0 && (
               <div>
-                <p className="text-xs font-medium text-yellow-700 mb-1">Proveedores no encontrados (revisión manual):</p>
-                <ScrollArea className="max-h-[120px] rounded border border-yellow-500/20 bg-yellow-50/50">
+                <p className="text-xs font-medium text-blue-700 mb-1">Proveedores creados automáticamente:</p>
+                <ScrollArea className="max-h-[100px] rounded border border-blue-500/20 bg-blue-50/50">
                   <div className="p-2 space-y-1">
-                    {result.manualReview.map((r, i) => (
-                      <p key={i} className="text-xs">Fila {r.row}: <span className="font-medium">{r.proveedor}</span></p>
+                    {result.created_providers.map((p, i) => (
+                      <p key={i} className="text-xs font-medium">{p}</p>
                     ))}
                   </div>
                 </ScrollArea>
