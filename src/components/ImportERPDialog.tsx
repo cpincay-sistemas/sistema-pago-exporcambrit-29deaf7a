@@ -43,7 +43,6 @@ const COLUMN_MAP: Record<string, keyof ImportRow> = {
   // proveedor / razon social
   proveedor: "proveedor",
   razon_social: "proveedor",
-  razon_social: "proveedor",
   supplier: "proveedor",
   // codigo proveedor
   proveedor_codigo: "codigo_proveedor",
