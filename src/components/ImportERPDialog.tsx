@@ -184,16 +184,21 @@ export default function ImportERPDialog({ open, onOpenChange }: { open: boolean;
         }
 
         const mapped: ImportRow[] = raw.map((r) => {
-          const row: any = { proveedor: "", factura: "", motivo: "", fecha_emision: "", fecha_vencimiento: "", saldo: 0 };
+          const row: any = { proveedor: "", codigo_proveedor: "", factura: "", motivo: "", fecha_emision: "", fecha_vencimiento: "", saldo: 0, doc_interno: "", observaciones: "", periodo: "", dias_credito: 0 };
           for (const [orig, target] of Object.entries(colMapping)) {
             row[target] = r[orig];
           }
           row.fecha_emision = parseDate(row.fecha_emision) || String(row.fecha_emision);
           row.fecha_vencimiento = parseDate(row.fecha_vencimiento) || String(row.fecha_vencimiento);
           row.saldo = parseFloat(String(row.saldo).replace(/[,$]/g, "")) || 0;
-          row.proveedor = String(row.proveedor).trim();
-          row.factura = String(row.factura).trim();
-          row.motivo = String(row.motivo).trim();
+          row.proveedor = String(row.proveedor || "").trim();
+          row.codigo_proveedor = String(row.codigo_proveedor || "").trim();
+          row.factura = String(row.factura || "").trim();
+          row.motivo = String(row.motivo || "").trim();
+          row.doc_interno = String(row.doc_interno || "").trim();
+          row.observaciones = String(row.observaciones || "").trim();
+          row.periodo = String(row.periodo || "").trim();
+          row.dias_credito = parseInt(String(row.dias_credito)) || 0;
           return row;
         });
 
