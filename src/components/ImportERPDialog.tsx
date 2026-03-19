@@ -40,32 +40,64 @@ interface ImportResult {
 type Step = "upload" | "preview" | "importing" | "result";
 
 const COLUMN_MAP: Record<string, keyof ImportRow> = {
+  // proveedor / razon social
   proveedor: "proveedor",
   razon_social: "proveedor",
-  razón_social: "proveedor",
+  razon_social: "proveedor",
   supplier: "proveedor",
+  // codigo proveedor
+  proveedor_codigo: "codigo_proveedor",
+  codigo_proveedor: "codigo_proveedor",
+  codigo: "codigo_proveedor",
+  // factura / documento
   factura: "factura",
   numero_factura: "factura",
   invoice: "factura",
+  n_documento: "factura",
+  no_documento: "factura",
+  numero_documento: "factura",
+  documento: "factura",
+  // motivo
   motivo: "motivo",
   descripcion: "motivo",
   description: "motivo",
   concepto: "motivo",
+  // fechas
   fecha_emision: "fecha_emision",
+  fecha_de_emision: "fecha_emision",
   emision: "fecha_emision",
   emission_date: "fecha_emision",
   fecha_vencimiento: "fecha_vencimiento",
   vencimiento: "fecha_vencimiento",
   due_date: "fecha_vencimiento",
+  // saldo
   saldo: "saldo",
   saldo_total: "saldo",
   monto: "saldo",
   amount: "saldo",
   total: "saldo",
+  // extras
+  doc_interno: "doc_interno",
+  doc__interno: "doc_interno",
+  documento_interno: "doc_interno",
+  observaciones: "observaciones",
+  periodo: "periodo",
+  dias_credito: "dias_credito",
 };
 
 function normalizeColumnName(name: string): string {
-  return name.toLowerCase().trim().replace(/\s+/g, "_").replace(/[áà]/g, "a").replace(/[éè]/g, "e").replace(/[íì]/g, "i").replace(/[óò]/g, "o").replace(/[úù]/g, "u");
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/[áà]/g, "a")
+    .replace(/[éè]/g, "e")
+    .replace(/[íì]/g, "i")
+    .replace(/[óò]/g, "o")
+    .replace(/[úù]/g, "u")
+    .replace(/[°º]/g, "")
+    .replace(/[^a-z0-9]/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_|_$/g, "");
 }
 
 function parseDate(val: any): string | null {
