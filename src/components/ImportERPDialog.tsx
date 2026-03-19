@@ -228,17 +228,17 @@ export default function ImportERPDialog({ open, onOpenChange }: { open: boolean;
     const existingFacturas = new Set((factRes.data || []).map((f) => `${f.numero_factura}|${f.codigo_proveedor}`));
 
     const provByName = new Map<string, { codigo: string; razon_social: string }>();
+    const provByCodigo = new Map<string, { codigo: string; razon_social: string }>();
     for (const p of proveedores) {
       provByName.set(p.razon_social.toLowerCase(), p);
+      provByCodigo.set(p.codigo, p);
     }
 
     for (let i = 0; i < rows.length; i++) {
       const r = rows[i];
-      const rowNum = i + 2; // Excel row (header=1)
+      const rowNum = i + 2;
       let hasError = false;
 
-      // Validate required fields
-      if (!r.proveedor) { errors.push({ row: rowNum, field: "proveedor", message: "Proveedor vacío" }); hasError = true; }
       if (!r.factura) { errors.push({ row: rowNum, field: "factura", message: "Factura vacía" }); hasError = true; }
       if (!r.fecha_emision || !isValidDate(r.fecha_emision)) { errors.push({ row: rowNum, field: "fecha_emision", message: "Fecha emisión inválida" }); hasError = true; }
       if (!r.fecha_vencimiento || !isValidDate(r.fecha_vencimiento)) { errors.push({ row: rowNum, field: "fecha_vencimiento", message: "Fecha vencimiento inválida" }); hasError = true; }
@@ -246,10 +246,18 @@ export default function ImportERPDialog({ open, onOpenChange }: { open: boolean;
 
       if (hasError) { setProgress(((i + 1) / rows.length) * 100); continue; }
 
-      // Check proveedor exists
-      const prov = provByName.get(r.proveedor.toLowerCase());
+      // Look up proveedor by codigo first, then by name
+      const prov = (r.codigo_proveedor ? provByCodigo.get(r.codigo_proveedor) : null) 
+        || provByName.get(r.proveedor.toLowerCase());
+      
+      if (!prov && !r.proveedor && !r.codigo_proveedor) {
+        errors.push({ row: rowNum, field: "proveedor", message: "Proveedor vacío" });
+        setProgress(((i + 1) / rows.length) * 100);
+        continue;
+      }
+      
       if (!prov) {
-        manualReview.push({ row: rowNum, proveedor: r.proveedor });
+        manualReview.push({ row: rowNum, proveedor: r.proveedor || r.codigo_proveedor });
         setProgress(((i + 1) / rows.length) * 100);
         continue;
       }
