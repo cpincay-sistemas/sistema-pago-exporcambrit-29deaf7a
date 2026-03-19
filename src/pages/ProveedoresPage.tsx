@@ -124,6 +124,7 @@ export default function ProveedoresPage() {
           </table>
         </div>
       </div>
+      <ImportProveedoresDialog open={importOpen} onOpenChange={setImportOpen} />
     </div>
   );
 }
