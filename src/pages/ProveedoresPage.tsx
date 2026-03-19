@@ -20,7 +20,6 @@ export default function ProveedoresPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [importOpen, setImportOpen] = useState(false);
-  const [editing, setEditing] = useState<any>(null);
 
   const filtered = useMemo(() => {
     if (!search) return proveedores;
