@@ -75,7 +75,7 @@ export default function BaseCxPPage() {
         </div>
         <div className="flex gap-2">
           {canWrite() && (
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => toast.info("Función de importación ERP próximamente")}>
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setImportOpen(true)}>
               <Upload size={15} /> Importar ERP
             </Button>
           )}
