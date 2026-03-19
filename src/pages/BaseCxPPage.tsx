@@ -20,6 +20,7 @@ export default function BaseCxPPage() {
   const [search, setSearch] = useState("");
   const [prioridadFilter, setPrioridadFilter] = useState<string>("ALL");
   const [page, setPage] = useState(0);
+  const [importOpen, setImportOpen] = useState(false);
 
   const getReal = (nf: string) => {
     const f = facturas.find((x) => x.numero_factura === nf);
