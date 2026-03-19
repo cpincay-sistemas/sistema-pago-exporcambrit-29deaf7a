@@ -12,11 +12,16 @@ import { useQueryClient } from "@tanstack/react-query";
 
 interface ImportRow {
   proveedor: string;
+  codigo_proveedor: string;
   factura: string;
   motivo: string;
   fecha_emision: string;
   fecha_vencimiento: string;
   saldo: number;
+  doc_interno: string;
+  observaciones: string;
+  periodo: string;
+  dias_credito: number;
 }
 
 interface ValidationError {
@@ -35,32 +40,63 @@ interface ImportResult {
 type Step = "upload" | "preview" | "importing" | "result";
 
 const COLUMN_MAP: Record<string, keyof ImportRow> = {
+  // proveedor / razon social
   proveedor: "proveedor",
   razon_social: "proveedor",
-  razón_social: "proveedor",
   supplier: "proveedor",
+  // codigo proveedor
+  proveedor_codigo: "codigo_proveedor",
+  codigo_proveedor: "codigo_proveedor",
+  codigo: "codigo_proveedor",
+  // factura / documento
   factura: "factura",
   numero_factura: "factura",
   invoice: "factura",
+  n_documento: "factura",
+  no_documento: "factura",
+  numero_documento: "factura",
+  documento: "factura",
+  // motivo
   motivo: "motivo",
   descripcion: "motivo",
   description: "motivo",
   concepto: "motivo",
+  // fechas
   fecha_emision: "fecha_emision",
+  fecha_de_emision: "fecha_emision",
   emision: "fecha_emision",
   emission_date: "fecha_emision",
   fecha_vencimiento: "fecha_vencimiento",
   vencimiento: "fecha_vencimiento",
   due_date: "fecha_vencimiento",
+  // saldo
   saldo: "saldo",
   saldo_total: "saldo",
   monto: "saldo",
   amount: "saldo",
   total: "saldo",
+  // extras
+  doc_interno: "doc_interno",
+  doc__interno: "doc_interno",
+  documento_interno: "doc_interno",
+  observaciones: "observaciones",
+  periodo: "periodo",
+  dias_credito: "dias_credito",
 };
 
 function normalizeColumnName(name: string): string {
-  return name.toLowerCase().trim().replace(/\s+/g, "_").replace(/[áà]/g, "a").replace(/[éè]/g, "e").replace(/[íì]/g, "i").replace(/[óò]/g, "o").replace(/[úù]/g, "u");
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/[áà]/g, "a")
+    .replace(/[éè]/g, "e")
+    .replace(/[íì]/g, "i")
+    .replace(/[óò]/g, "o")
+    .replace(/[úù]/g, "u")
+    .replace(/[°º]/g, "")
+    .replace(/[^a-z0-9]/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_|_$/g, "");
 }
 
 function parseDate(val: any): string | null {
@@ -148,16 +184,21 @@ export default function ImportERPDialog({ open, onOpenChange }: { open: boolean;
         }
 
         const mapped: ImportRow[] = raw.map((r) => {
-          const row: any = { proveedor: "", factura: "", motivo: "", fecha_emision: "", fecha_vencimiento: "", saldo: 0 };
+          const row: any = { proveedor: "", codigo_proveedor: "", factura: "", motivo: "", fecha_emision: "", fecha_vencimiento: "", saldo: 0, doc_interno: "", observaciones: "", periodo: "", dias_credito: 0 };
           for (const [orig, target] of Object.entries(colMapping)) {
             row[target] = r[orig];
           }
           row.fecha_emision = parseDate(row.fecha_emision) || String(row.fecha_emision);
           row.fecha_vencimiento = parseDate(row.fecha_vencimiento) || String(row.fecha_vencimiento);
           row.saldo = parseFloat(String(row.saldo).replace(/[,$]/g, "")) || 0;
-          row.proveedor = String(row.proveedor).trim();
-          row.factura = String(row.factura).trim();
-          row.motivo = String(row.motivo).trim();
+          row.proveedor = String(row.proveedor || "").trim();
+          row.codigo_proveedor = String(row.codigo_proveedor || "").trim();
+          row.factura = String(row.factura || "").trim();
+          row.motivo = String(row.motivo || "").trim();
+          row.doc_interno = String(row.doc_interno || "").trim();
+          row.observaciones = String(row.observaciones || "").trim();
+          row.periodo = String(row.periodo || "").trim();
+          row.dias_credito = parseInt(String(row.dias_credito)) || 0;
           return row;
         });
 
@@ -187,17 +228,17 @@ export default function ImportERPDialog({ open, onOpenChange }: { open: boolean;
     const existingFacturas = new Set((factRes.data || []).map((f) => `${f.numero_factura}|${f.codigo_proveedor}`));
 
     const provByName = new Map<string, { codigo: string; razon_social: string }>();
+    const provByCodigo = new Map<string, { codigo: string; razon_social: string }>();
     for (const p of proveedores) {
       provByName.set(p.razon_social.toLowerCase(), p);
+      provByCodigo.set(p.codigo, p);
     }
 
     for (let i = 0; i < rows.length; i++) {
       const r = rows[i];
-      const rowNum = i + 2; // Excel row (header=1)
+      const rowNum = i + 2;
       let hasError = false;
 
-      // Validate required fields
-      if (!r.proveedor) { errors.push({ row: rowNum, field: "proveedor", message: "Proveedor vacío" }); hasError = true; }
       if (!r.factura) { errors.push({ row: rowNum, field: "factura", message: "Factura vacía" }); hasError = true; }
       if (!r.fecha_emision || !isValidDate(r.fecha_emision)) { errors.push({ row: rowNum, field: "fecha_emision", message: "Fecha emisión inválida" }); hasError = true; }
       if (!r.fecha_vencimiento || !isValidDate(r.fecha_vencimiento)) { errors.push({ row: rowNum, field: "fecha_vencimiento", message: "Fecha vencimiento inválida" }); hasError = true; }
@@ -205,10 +246,18 @@ export default function ImportERPDialog({ open, onOpenChange }: { open: boolean;
 
       if (hasError) { setProgress(((i + 1) / rows.length) * 100); continue; }
 
-      // Check proveedor exists
-      const prov = provByName.get(r.proveedor.toLowerCase());
+      // Look up proveedor by codigo first, then by name
+      const prov = (r.codigo_proveedor ? provByCodigo.get(r.codigo_proveedor) : null) 
+        || provByName.get(r.proveedor.toLowerCase());
+      
+      if (!prov && !r.proveedor && !r.codigo_proveedor) {
+        errors.push({ row: rowNum, field: "proveedor", message: "Proveedor vacío" });
+        setProgress(((i + 1) / rows.length) * 100);
+        continue;
+      }
+      
       if (!prov) {
-        manualReview.push({ row: rowNum, proveedor: r.proveedor });
+        manualReview.push({ row: rowNum, proveedor: r.proveedor || r.codigo_proveedor });
         setProgress(((i + 1) / rows.length) * 100);
         continue;
       }
@@ -230,7 +279,12 @@ export default function ImportERPDialog({ open, onOpenChange }: { open: boolean;
         fecha_emision: r.fecha_emision,
         fecha_vencimiento: r.fecha_vencimiento,
         saldo_total: r.saldo,
-        observaciones: `Importado por ${user?.email || "sistema"} el ${new Date().toLocaleString("es-EC")}`,
+        doc_interno: r.doc_interno || undefined,
+        periodo: r.periodo || undefined,
+        dias_credito: r.dias_credito || 0,
+        observaciones: r.observaciones
+          ? `${r.observaciones} | Importado por ${user?.email || "sistema"} el ${new Date().toLocaleString("es-EC")}`
+          : `Importado por ${user?.email || "sistema"} el ${new Date().toLocaleString("es-EC")}`,
       });
 
       setProgress(((i + 1) / rows.length) * 100);
@@ -275,8 +329,8 @@ export default function ImportERPDialog({ open, onOpenChange }: { open: boolean;
             </div>
             <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={handleFile} />
             <div className="text-xs text-muted-foreground space-y-1 w-full">
-              <p className="font-medium">Columnas esperadas:</p>
-              <p>proveedor, factura, motivo, fecha_emision, fecha_vencimiento, saldo</p>
+              <p className="font-medium">Columnas soportadas:</p>
+              <p>RAZON SOCIAL, PROVEEDOR CODIGO, N° DOCUMENTO, MOTIVO, FECHA DE EMISION, FECHA VENCIMIENTO, SALDO TOTAL</p>
             </div>
           </div>
         )}
