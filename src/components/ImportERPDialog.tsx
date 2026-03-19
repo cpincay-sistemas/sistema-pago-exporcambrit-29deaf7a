@@ -12,11 +12,16 @@ import { useQueryClient } from "@tanstack/react-query";
 
 interface ImportRow {
   proveedor: string;
+  codigo_proveedor: string;
   factura: string;
   motivo: string;
   fecha_emision: string;
   fecha_vencimiento: string;
   saldo: number;
+  doc_interno: string;
+  observaciones: string;
+  periodo: string;
+  dias_credito: number;
 }
 
 interface ValidationError {
