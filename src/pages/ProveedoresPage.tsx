@@ -6,9 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Plus, Pencil, Search } from "lucide-react";
+import { Plus, Pencil, Search, Upload } from "lucide-react";
 import { validarRUC, formatDate } from "@/lib/business-rules";
 import { toast } from "sonner";
+import ImportProveedoresDialog from "@/components/ImportProveedoresDialog";
 
 export default function ProveedoresPage() {
   const { data: proveedores = [] } = useProveedores();
@@ -18,6 +19,7 @@ export default function ProveedoresPage() {
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   const filtered = useMemo(() => {
     if (!search) return proveedores;
@@ -56,17 +58,22 @@ export default function ProveedoresPage() {
           <p className="text-sm text-muted-foreground">{proveedores.filter((p) => p.activo).length} activos de {proveedores.length} registrados</p>
         </div>
         {canWrite() && (
-          <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) setEditing(null); }}>
-            <DialogTrigger asChild>
-              <Button size="sm" className="gap-1.5"><Plus size={15} /> Nuevo Proveedor</Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-lg">
-              <DialogHeader>
-                <DialogTitle>{editing ? "Editar" : "Nuevo"} Proveedor</DialogTitle>
-              </DialogHeader>
-              <ProveedorForm initial={editing} onSave={handleSave} onCancel={() => { setDialogOpen(false); setEditing(null); }} />
-            </DialogContent>
-          </Dialog>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setImportOpen(true)}>
+              <Upload size={15} /> Importar Proveedores
+            </Button>
+            <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) setEditing(null); }}>
+              <DialogTrigger asChild>
+                <Button size="sm" className="gap-1.5"><Plus size={15} /> Nuevo Proveedor</Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>{editing ? "Editar" : "Nuevo"} Proveedor</DialogTitle>
+                </DialogHeader>
+                <ProveedorForm initial={editing} onSave={handleSave} onCancel={() => { setDialogOpen(false); setEditing(null); }} />
+              </DialogContent>
+            </Dialog>
+          </div>
         )}
       </div>
 
@@ -117,6 +124,7 @@ export default function ProveedoresPage() {
           </table>
         </div>
       </div>
+      <ImportProveedoresDialog open={importOpen} onOpenChange={setImportOpen} />
     </div>
   );
 }
