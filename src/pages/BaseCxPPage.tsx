@@ -9,6 +9,7 @@ import { Search, Download, Upload, ChevronLeft, ChevronRight } from "lucide-reac
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
+import ImportERPDialog from "@/components/ImportERPDialog";
 
 const PAGE_SIZE = 25;
 
