@@ -58,17 +58,22 @@ export default function ProveedoresPage() {
           <p className="text-sm text-muted-foreground">{proveedores.filter((p) => p.activo).length} activos de {proveedores.length} registrados</p>
         </div>
         {canWrite() && (
-          <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) setEditing(null); }}>
-            <DialogTrigger asChild>
-              <Button size="sm" className="gap-1.5"><Plus size={15} /> Nuevo Proveedor</Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-lg">
-              <DialogHeader>
-                <DialogTitle>{editing ? "Editar" : "Nuevo"} Proveedor</DialogTitle>
-              </DialogHeader>
-              <ProveedorForm initial={editing} onSave={handleSave} onCancel={() => { setDialogOpen(false); setEditing(null); }} />
-            </DialogContent>
-          </Dialog>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setImportOpen(true)}>
+              <Upload size={15} /> Importar Proveedores
+            </Button>
+            <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) setEditing(null); }}>
+              <DialogTrigger asChild>
+                <Button size="sm" className="gap-1.5"><Plus size={15} /> Nuevo Proveedor</Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>{editing ? "Editar" : "Nuevo"} Proveedor</DialogTitle>
+                </DialogHeader>
+                <ProveedorForm initial={editing} onSave={handleSave} onCancel={() => { setDialogOpen(false); setEditing(null); }} />
+              </DialogContent>
+            </Dialog>
+          </div>
         )}
       </div>
 
