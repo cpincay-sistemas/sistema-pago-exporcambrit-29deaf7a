@@ -142,6 +142,7 @@ export default function BaseCxPPage() {
           </div>
         )}
       </div>
+      <ImportERPDialog open={importOpen} onOpenChange={setImportOpen} />
     </div>
   );
 }
