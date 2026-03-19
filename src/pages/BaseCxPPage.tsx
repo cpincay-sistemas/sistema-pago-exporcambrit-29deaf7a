@@ -9,6 +9,7 @@ import { Search, Download, Upload, ChevronLeft, ChevronRight } from "lucide-reac
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
+import ImportERPDialog from "@/components/ImportERPDialog";
 
 const PAGE_SIZE = 25;
 
@@ -19,6 +20,7 @@ export default function BaseCxPPage() {
   const [search, setSearch] = useState("");
   const [prioridadFilter, setPrioridadFilter] = useState<string>("ALL");
   const [page, setPage] = useState(0);
+  const [importOpen, setImportOpen] = useState(false);
 
   const getReal = (nf: string) => {
     const f = facturas.find((x) => x.numero_factura === nf);
@@ -73,7 +75,7 @@ export default function BaseCxPPage() {
         </div>
         <div className="flex gap-2">
           {canWrite() && (
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => toast.info("Función de importación ERP próximamente")}>
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setImportOpen(true)}>
               <Upload size={15} /> Importar ERP
             </Button>
           )}
@@ -140,6 +142,7 @@ export default function BaseCxPPage() {
           </div>
         )}
       </div>
+      <ImportERPDialog open={importOpen} onOpenChange={setImportOpen} />
     </div>
   );
 }
