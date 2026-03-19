@@ -329,8 +329,8 @@ export default function ImportERPDialog({ open, onOpenChange }: { open: boolean;
             </div>
             <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={handleFile} />
             <div className="text-xs text-muted-foreground space-y-1 w-full">
-              <p className="font-medium">Columnas esperadas:</p>
-              <p>proveedor, factura, motivo, fecha_emision, fecha_vencimiento, saldo</p>
+              <p className="font-medium">Columnas soportadas:</p>
+              <p>RAZON SOCIAL, PROVEEDOR CODIGO, N° DOCUMENTO, MOTIVO, FECHA DE EMISION, FECHA VENCIMIENTO, SALDO TOTAL</p>
             </div>
           </div>
         )}
