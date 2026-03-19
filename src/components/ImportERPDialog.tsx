@@ -279,7 +279,12 @@ export default function ImportERPDialog({ open, onOpenChange }: { open: boolean;
         fecha_emision: r.fecha_emision,
         fecha_vencimiento: r.fecha_vencimiento,
         saldo_total: r.saldo,
-        observaciones: `Importado por ${user?.email || "sistema"} el ${new Date().toLocaleString("es-EC")}`,
+        doc_interno: r.doc_interno || undefined,
+        periodo: r.periodo || undefined,
+        dias_credito: r.dias_credito || 0,
+        observaciones: r.observaciones
+          ? `${r.observaciones} | Importado por ${user?.email || "sistema"} el ${new Date().toLocaleString("es-EC")}`
+          : `Importado por ${user?.email || "sistema"} el ${new Date().toLocaleString("es-EC")}`,
       });
 
       setProgress(((i + 1) / rows.length) * 100);
