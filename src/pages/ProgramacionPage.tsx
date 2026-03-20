@@ -173,6 +173,30 @@ export default function ProgramacionPage() {
 
   const limiteUsado = (totalAprobado / limite) * 100;
 
+  const tableRef = useRef<HTMLDivElement>(null);
+
+  const handleExportProgramacion = async (format: "pdf" | "jpg" | "png") => {
+    if (!tableRef.current) return;
+    try {
+      const canvas = await html2canvas(tableRef.current, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
+      const fileName = `programacion_${selectedSemana}`;
+      if (format === "png" || format === "jpg") {
+        const link = document.createElement("a");
+        link.download = `${fileName}.${format}`;
+        link.href = canvas.toDataURL(`image/${format === "jpg" ? "jpeg" : "png"}`);
+        link.click();
+      } else {
+        const imgData = canvas.toDataURL("image/png");
+        const pdf = new jsPDF({ orientation: canvas.width > canvas.height ? "landscape" : "portrait", unit: "px", format: [canvas.width, canvas.height] });
+        pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
+        pdf.save(`${fileName}.pdf`);
+      }
+      toast.success(`Exportado como ${format.toUpperCase()}`);
+    } catch {
+      toast.error("Error al exportar");
+    }
+  };
+
   return (
     <div className="space-y-4 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -182,6 +206,16 @@ export default function ProgramacionPage() {
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <Input type="week" value={selectedSemana} onChange={(e) => setSelectedSemana(e.target.value || semanaActual)} className="w-40" />
+          <Select onValueChange={(v) => handleExportProgramacion(v as "pdf" | "jpg" | "png")}>
+            <SelectTrigger className="w-36">
+              <div className="flex items-center gap-1.5"><Download size={15} /> Exportar</div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="pdf">PDF</SelectItem>
+              <SelectItem value="jpg">JPG</SelectItem>
+              <SelectItem value="png">PNG</SelectItem>
+            </SelectContent>
+          </Select>
           {canWrite() && (
             <>
               <Button variant="outline" size="sm" onClick={() => setShowLimiteDialog(true)}>Límite: {formatUSD(limite)}</Button>
