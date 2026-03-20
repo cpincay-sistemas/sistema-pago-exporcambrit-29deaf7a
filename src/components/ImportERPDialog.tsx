@@ -283,7 +283,7 @@ export default function ImportERPDialog({ open, onOpenChange }: { open: boolean;
         const { error: insertErr } = await supabase.from("proveedores").insert({
           codigo,
           razon_social: razon,
-          ruc_ci: "0000000000001",
+          ruc_ci: r.ruc_ci || "0000000000001",
           activo: true,
         });
         if (insertErr) {
