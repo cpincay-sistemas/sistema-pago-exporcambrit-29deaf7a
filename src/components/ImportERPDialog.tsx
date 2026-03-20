@@ -13,6 +13,7 @@ import { useQueryClient } from "@tanstack/react-query";
 interface ImportRow {
   proveedor: string;
   codigo_proveedor: string;
+  ruc_ci: string;
   factura: string;
   motivo: string;
   fecha_emision: string;
@@ -203,7 +204,16 @@ export default function ImportERPDialog({ open, onOpenChange }: { open: boolean;
           row.fecha_vencimiento = parseDate(row.fecha_vencimiento) || String(row.fecha_vencimiento);
           row.saldo = parseLocalizedNumber(row.saldo);
           row.proveedor = String(row.proveedor || "").trim();
-          row.codigo_proveedor = String(row.codigo_proveedor || "").trim();
+          // F1: Split CODIGO|RUC
+          let rawCodigo = String(row.codigo_proveedor || "").trim();
+          if (rawCodigo.includes("|")) {
+            const parts = rawCodigo.split("|");
+            row.codigo_proveedor = parts[0].trim();
+            row.ruc_ci = parts[1]?.trim() || "";
+          } else {
+            row.codigo_proveedor = rawCodigo;
+            row.ruc_ci = "";
+          }
           row.factura = String(row.factura || "").trim();
           row.motivo = String(row.motivo || "").trim();
           row.doc_interno = String(row.doc_interno || "").trim();
@@ -273,7 +283,7 @@ export default function ImportERPDialog({ open, onOpenChange }: { open: boolean;
         const { error: insertErr } = await supabase.from("proveedores").insert({
           codigo,
           razon_social: razon,
-          ruc_ci: "0000000000001",
+          ruc_ci: r.ruc_ci || "0000000000001",
           activo: true,
         });
         if (insertErr) {

@@ -87,6 +87,12 @@ export default function ImportProveedoresDialog({ open, onOpenChange }: { open: 
           for (const [orig, target] of Object.entries(colMapping)) {
             row[target] = String(r[orig] || "").trim();
           }
+          // F1: Split CODIGO|RUC
+          if (row.codigo && row.codigo.includes("|")) {
+            const parts = row.codigo.split("|");
+            row.codigo = parts[0].trim();
+            if (!row.ruc_ci) row.ruc_ci = parts[1]?.trim() || "";
+          }
           if (!row.tipo_cuenta || !["CORRIENTE", "AHORROS"].includes(row.tipo_cuenta.toUpperCase())) {
             row.tipo_cuenta = "CORRIENTE";
           } else {
