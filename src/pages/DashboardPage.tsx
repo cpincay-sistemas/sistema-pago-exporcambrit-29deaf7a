@@ -1,16 +1,58 @@
+import { useState, useMemo } from "react";
 import { useFacturas, useHistorico } from "@/hooks/useSupabaseData";
 import { KPICard } from "@/components/KPICard";
 import { PrioridadBadge } from "@/components/PrioridadBadge";
 import { formatUSD, formatDate, getCurrentISOWeek, calcularDiasVencidos, calcularPrioridad } from "@/lib/business-rules";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, CartesianGrid } from "recharts";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Prioridad } from "@/types";
 
 const CHART_COLORS = ["hsl(0,100%,38%)", "hsl(27,92%,47%)", "hsl(45,100%,37%)", "hsl(100,41%,24%)"];
+
+type PeriodFilter = "week" | "month" | "year" | "all";
+
+function getISOWeekBounds(): [Date, Date] {
+  const now = new Date();
+  const day = now.getDay();
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - ((day + 6) % 7));
+  monday.setHours(0, 0, 0, 0);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  sunday.setHours(23, 59, 59, 999);
+  return [monday, sunday];
+}
+
+function getMonthBounds(): [Date, Date] {
+  const now = new Date();
+  return [new Date(now.getFullYear(), now.getMonth(), 1), new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)];
+}
+
+function getYearBounds(): [Date, Date] {
+  const now = new Date();
+  return [new Date(now.getFullYear(), 0, 1), new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999)];
+}
+
+function inRange(dateStr: string, bounds: [Date, Date] | null): boolean {
+  if (!bounds) return true;
+  const d = new Date(dateStr + "T00:00:00");
+  return d >= bounds[0] && d <= bounds[1];
+}
 
 export default function DashboardPage() {
   const { data: facturas = [] } = useFacturas();
   const { data: historico = [] } = useHistorico();
   const currentWeek = getCurrentISOWeek();
+  const [period, setPeriod] = useState<PeriodFilter>("month");
+
+  const bounds = useMemo((): [Date, Date] | null => {
+    if (period === "week") return getISOWeekBounds();
+    if (period === "month") return getMonthBounds();
+    if (period === "year") return getYearBounds();
+    return null;
+  }, [period]);
+
+  const periodLabel = period === "week" ? "Esta semana" : period === "month" ? "Este mes" : period === "year" ? "Este año" : "Todo";
 
   const getReal = (nf: string) => {
     const f = facturas.find((x) => x.numero_factura === nf);
@@ -25,10 +67,13 @@ export default function DashboardPage() {
     prioridad: calcularPrioridad(calcularDiasVencidos(f.fecha_vencimiento)) as Prioridad,
   }));
 
-  const activasConSaldo = enriched.filter((f) => getReal(f.numero_factura) > 0);
+  const filteredFacturas = useMemo(() => enriched.filter((f) => inRange(f.fecha_vencimiento, bounds)), [enriched, bounds]);
+  const filteredHistorico = useMemo(() => historico.filter((h) => inRange(h.fecha_pago, bounds)), [historico, bounds]);
+
+  const activasConSaldo = filteredFacturas.filter((f) => getReal(f.numero_factura) > 0);
   const totalPendiente = activasConSaldo.reduce((s, f) => s + getReal(f.numero_factura), 0);
   const vencidoCritico = activasConSaldo.filter((f) => f.prioridad === "CRITICO").reduce((s, f) => s + getReal(f.numero_factura), 0);
-  const pagadoEstaSemana = historico.filter((h) => h.semana === currentWeek).reduce((s, h) => s + Number(h.monto_pagado), 0);
+  const pagadoPeriodo = filteredHistorico.reduce((s, h) => s + Number(h.monto_pagado), 0);
   const facturasOver30 = activasConSaldo.filter((f) => f.dias_vencidos >= 30).length;
 
   const prioridadData = (["CRITICO", "URGENTE", "PROXIMO", "AL_DIA"] as const).map((p) => ({
@@ -55,15 +100,28 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div>
-        <h2 className="text-xl font-semibold text-teal">Dashboard Ejecutivo</h2>
-        <p className="text-sm text-muted-foreground">Semana {currentWeek} — Visión general de cuentas por pagar</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-semibold text-teal">Dashboard Ejecutivo</h2>
+          <p className="text-sm text-muted-foreground">Semana {currentWeek} — Visión general de cuentas por pagar</p>
+        </div>
+        <Select value={period} onValueChange={(v) => setPeriod(v as PeriodFilter)}>
+          <SelectTrigger className="w-40">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="week">Esta semana</SelectItem>
+            <SelectItem value="month">Este mes</SelectItem>
+            <SelectItem value="year">Este año</SelectItem>
+            <SelectItem value="all">Todo</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard title="CxP Total Pendiente" value={totalPendiente} variant="default" />
         <KPICard title="Vencido Crítico" value={vencidoCritico} variant="danger" subtitle={`${alertas.length} facturas`} />
-        <KPICard title="Pagado Esta Semana" value={pagadoEstaSemana} variant="success" />
+        <KPICard title={`Pagado — ${periodLabel}`} value={pagadoPeriodo} variant="success" />
         <KPICard title="Facturas > 30 días" value={String(facturasOver30)} variant="warning" subtitle="requieren atención" />
       </div>
 

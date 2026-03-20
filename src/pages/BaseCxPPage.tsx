@@ -115,13 +115,27 @@ export default function BaseCxPPage() {
           <Input placeholder="Buscar proveedor, factura, motivo…" className="pl-9" value={search} onChange={(e) => { setSearch(e.target.value); setPage(0); }} />
         </div>
         <Select value={prioridadFilter} onValueChange={(v) => { setPrioridadFilter(v); setPage(0); }}>
-          <SelectTrigger className="w-44"><SelectValue placeholder="Prioridad" /></SelectTrigger>
+          <SelectTrigger className="w-36"><SelectValue placeholder="Prioridad" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">Todas</SelectItem>
             <SelectItem value="CRITICO">Crítico</SelectItem>
             <SelectItem value="URGENTE">Urgente</SelectItem>
             <SelectItem value="PROXIMO">Próximo</SelectItem>
             <SelectItem value="AL_DIA">Al día</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={yearFilter} onValueChange={(v) => { setYearFilter(v); setPage(0); }}>
+          <SelectTrigger className="w-28"><SelectValue placeholder="Año" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">Todos</SelectItem>
+            {years.map((y) => (<SelectItem key={y} value={y}>{y}</SelectItem>))}
+          </SelectContent>
+        </Select>
+        <Select value={monthFilter} onValueChange={(v) => { setMonthFilter(v); setPage(0); }}>
+          <SelectTrigger className="w-28"><SelectValue placeholder="Mes" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">Todos</SelectItem>
+            {MONTHS.map((m, i) => (<SelectItem key={m} value={m}>{MONTH_LABELS[i]}</SelectItem>))}
           </SelectContent>
         </Select>
       </div>
