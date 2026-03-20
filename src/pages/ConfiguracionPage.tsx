@@ -1,11 +1,18 @@
+import { useState } from "react";
 import { useProfiles, useUserRoles, useUpdateUserRole, useUpdateProfile } from "@/hooks/useSupabaseData";
 import { useAuth } from "@/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Shield, Users } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Shield, Users, AlertTriangle, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import type { Rol } from "@/types";
 
 const rolColors: Record<Rol, string> = {
@@ -22,12 +29,26 @@ const rolPermisos: Record<Rol, string> = {
   CONSULTA: "Solo lectura en todos los módulos",
 };
 
+const DANGER_ACTIONS = [
+  { key: "facturas", label: "Limpiar Base CxP", desc: "Elimina todas las facturas de cuentas por pagar" },
+  { key: "proveedores", label: "Limpiar Proveedores", desc: "Elimina todos los proveedores registrados" },
+  { key: "historico", label: "Limpiar Histórico", desc: "Elimina todo el historial de pagos" },
+  { key: "programacion", label: "Limpiar Programación + Pagos", desc: "Elimina programaciones, líneas y pagos ejecutados" },
+] as const;
+
 export default function ConfiguracionPage() {
   const { data: profiles = [] } = useProfiles();
   const { data: userRoles = [] } = useUserRoles();
   const updateUserRole = useUpdateUserRole();
   const updateProfile = useUpdateProfile();
   const { isAdmin } = useAuth();
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+
+  const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; action: string; label: string } | null>(null);
+  const [resetAllDialog, setResetAllDialog] = useState(false);
+  const [confirmText, setConfirmText] = useState("");
+  const [loading, setLoading] = useState(false);
 
   if (!isAdmin()) {
     return (
@@ -57,6 +78,55 @@ export default function ConfiguracionPage() {
       toast.success(activo ? "Usuario desactivado" : "Usuario activado");
     } catch (err: any) {
       toast.error(err.message);
+    }
+  };
+
+  const clearTable = async (action: string) => {
+    setLoading(true);
+    try {
+      if (action === "facturas") {
+        const { error } = await supabase.from("facturas").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+        if (error) throw error;
+      } else if (action === "proveedores") {
+        const { error } = await supabase.from("proveedores").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+        if (error) throw error;
+      } else if (action === "historico") {
+        const { error } = await supabase.from("historico").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+        if (error) throw error;
+      } else if (action === "programacion") {
+        await supabase.from("pagos_ejecutados").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+        await supabase.from("lineas_programacion").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+        await supabase.from("programaciones").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      }
+      queryClient.invalidateQueries();
+      toast.success("Datos eliminados correctamente");
+    } catch (err: any) {
+      toast.error(err.message || "Error al eliminar datos");
+    } finally {
+      setLoading(false);
+      setConfirmDialog(null);
+    }
+  };
+
+  const handleResetAll = async () => {
+    if (confirmText !== "CONFIRMAR") { toast.error("Escriba CONFIRMAR para continuar"); return; }
+    setLoading(true);
+    try {
+      await supabase.from("pagos_ejecutados").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      await supabase.from("lineas_programacion").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      await supabase.from("programaciones").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      await supabase.from("historico").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      await supabase.from("facturas").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      await supabase.from("proveedores").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      queryClient.invalidateQueries();
+      toast.success("Todos los datos han sido eliminados");
+      setResetAllDialog(false);
+      setConfirmText("");
+      navigate("/");
+    } catch (err: any) {
+      toast.error(err.message || "Error al resetear datos");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -129,6 +199,78 @@ export default function ConfiguracionPage() {
           </TableBody>
         </Table>
       </div>
+
+      {/* Danger Zone */}
+      <div className="bg-red-50 border border-red-200 rounded-lg p-4 space-y-4">
+        <div className="flex items-center gap-2">
+          <AlertTriangle size={18} className="text-red-600" />
+          <h3 className="font-semibold text-sm text-red-800">Zona de Peligro</h3>
+        </div>
+        <p className="text-xs text-red-600">Estas acciones son irreversibles. Todos los datos eliminados no podrán recuperarse.</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {DANGER_ACTIONS.map((a) => (
+            <div key={a.key} className="flex items-center justify-between border border-red-200 rounded-lg p-3 bg-white">
+              <div>
+                <p className="text-sm font-medium text-red-800">{a.label}</p>
+                <p className="text-xs text-red-500">{a.desc}</p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-red-300 text-red-700 hover:bg-red-100 hover:text-red-800"
+                onClick={() => setConfirmDialog({ open: true, action: a.key, label: a.label })}
+              >
+                <Trash2 size={14} />
+              </Button>
+            </div>
+          ))}
+        </div>
+        <div className="pt-2 border-t border-red-200">
+          <Button
+            variant="destructive"
+            className="w-full"
+            onClick={() => { setResetAllDialog(true); setConfirmText(""); }}
+          >
+            <AlertTriangle size={16} /> Resetear TODO
+          </Button>
+        </div>
+      </div>
+
+      {/* Confirm single action */}
+      <Dialog open={!!confirmDialog?.open} onOpenChange={() => setConfirmDialog(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>¿{confirmDialog?.label}?</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">Esta acción es irreversible. ¿Desea continuar?</p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmDialog(null)}>Cancelar</Button>
+            <Button variant="destructive" disabled={loading} onClick={() => confirmDialog && clearTable(confirmDialog.action)}>
+              {loading ? "Eliminando..." : "Eliminar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reset ALL dialog */}
+      <Dialog open={resetAllDialog} onOpenChange={setResetAllDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle className="text-red-700">Resetear TODOS los datos</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Se eliminarán <strong>todas</strong> las facturas, proveedores, histórico, programaciones y pagos ejecutados. Escriba <strong>CONFIRMAR</strong> para continuar.
+          </p>
+          <Input
+            value={confirmText}
+            onChange={(e) => setConfirmText(e.target.value)}
+            placeholder="Escriba CONFIRMAR"
+            className="border-red-300 focus:ring-red-500"
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResetAllDialog(false)}>Cancelar</Button>
+            <Button variant="destructive" disabled={loading || confirmText !== "CONFIRMAR"} onClick={handleResetAll}>
+              {loading ? "Eliminando..." : "Resetear TODO"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

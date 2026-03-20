@@ -315,7 +315,7 @@ export default function ProgramacionPage() {
               <Button variant="outline" size="sm" onClick={handleApproveAll}><CheckCircle2 size={16} /> Aprobar Todas</Button>
             </div>
           )}
-          <div className="bg-card rounded-lg card-shadow overflow-hidden" ref={tableRef}>
+          <div className="bg-card rounded-lg card-shadow overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow>
