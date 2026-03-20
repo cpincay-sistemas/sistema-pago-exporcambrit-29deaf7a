@@ -13,6 +13,7 @@ import { useQueryClient } from "@tanstack/react-query";
 interface ImportRow {
   proveedor: string;
   codigo_proveedor: string;
+  ruc_ci: string;
   factura: string;
   motivo: string;
   fecha_emision: string;
