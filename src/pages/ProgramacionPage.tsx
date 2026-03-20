@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import {
   useProveedores, useFacturas, useHistorico, useProgramaciones,
   useLineasProgramacion, useAddProgramacion, useUpdateProgramacion,
@@ -14,8 +14,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Trash2, CheckCircle2, XCircle } from "lucide-react";
+import { Plus, Trash2, CheckCircle2, XCircle, Download } from "lucide-react";
 import type { FormaPago, EstadoAprobacion } from "@/types";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 
 const FORMAS_PAGO: FormaPago[] = ["TRANSFERENCIA", "CHEQUE", "EFECTIVO", "ACH"];
 
