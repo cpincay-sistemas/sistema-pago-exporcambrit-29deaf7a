@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef } from "react";
+import { useState, useMemo, useCallback } from "react";
 import {
   useProveedores, useFacturas, useHistorico, useProgramaciones,
   useLineasProgramacion, useAddProgramacion, useUpdateProgramacion,
@@ -173,21 +173,88 @@ export default function ProgramacionPage() {
 
   const limiteUsado = (totalAprobado / limite) * 100;
 
-  const tableRef = useRef<HTMLDivElement>(null);
+  
 
   const handleExportProgramacion = async (format: "pdf" | "jpg" | "png") => {
-    if (!tableRef.current) return;
+    if (lineas.length === 0) { toast.error("No hay líneas para exportar"); return; }
     try {
-      const canvas = await html2canvas(tableRef.current, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
+      const today = new Date();
+      const dateStr = `${String(today.getDate()).padStart(2, "0")}/${String(today.getMonth() + 1).padStart(2, "0")}/${today.getFullYear()}`;
+
+      // Group by provider for footer
+      const byProv: Record<string, { total: number; count: number }> = {};
+      let grandTotal = 0;
+      lineas.forEach((l) => {
+        const m = Number(l.monto_a_pagar);
+        grandTotal += m;
+        if (!byProv[l.razon_social]) byProv[l.razon_social] = { total: 0, count: 0 };
+        byProv[l.razon_social].total += m;
+        byProv[l.razon_social].count += 1;
+      });
+
+      // Build off-screen div
+      const container = document.createElement("div");
+      container.style.cssText = "position:absolute;left:-9999px;top:0;width:1200px;background:#fff;padding:32px;font-family:system-ui,sans-serif;color:#1a1a1a;";
+
+      // Header
+      const header = document.createElement("div");
+      header.style.cssText = "margin-bottom:20px;border-bottom:2px solid #0d9488;padding-bottom:12px;";
+      header.innerHTML = `<div style="font-size:20px;font-weight:700;color:#0d9488;">CamaroPay</div><div style="font-size:14px;color:#555;margin-top:4px;">Programación ${selectedSemana} — ${dateStr}</div>`;
+      container.appendChild(header);
+
+      // Table
+      const cols = ["Proveedor", "Factura", "Vencimiento", "Prioridad", "Estado", "Forma Pago", "Saldo Real", "Monto a Pagar", "Responsable"];
+      const alignRight = [false, false, false, false, false, false, true, true, false];
+      let tableHtml = `<table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr>`;
+      cols.forEach((c, i) => {
+        tableHtml += `<th style="text-align:${alignRight[i] ? "right" : "left"};padding:8px 10px;background:#f3f4f6;border-bottom:2px solid #d1d5db;font-weight:600;">${c}</th>`;
+      });
+      tableHtml += `</tr></thead><tbody>`;
+      lineas.forEach((l, idx) => {
+        const bg = idx % 2 === 0 ? "#fff" : "#f9fafb";
+        tableHtml += `<tr style="background:${bg};">
+          <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;"><div style="font-weight:500;">${l.razon_social}</div><div style="font-size:11px;color:#888;">${l.codigo_proveedor}</div></td>
+          <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;font-family:monospace;">${l.numero_factura}</td>
+          <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;">${formatDate(l.fecha_vencimiento)}<br/><span style="font-size:11px;color:#888;">${l.dias_vencidos}d vencidos</span></td>
+          <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;">${l.prioridad}</td>
+          <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;">${l.estado_aprobacion}</td>
+          <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;">${l.forma_pago}</td>
+          <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;text-align:right;font-variant-numeric:tabular-nums;">${formatUSD(Number(l.saldo_real_pendiente))}</td>
+          <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:600;font-variant-numeric:tabular-nums;">${formatUSD(Number(l.monto_a_pagar))}</td>
+          <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;">${l.responsable_pago}</td>
+        </tr>`;
+      });
+      tableHtml += `</tbody></table>`;
+      const tableDiv = document.createElement("div");
+      tableDiv.innerHTML = tableHtml;
+      container.appendChild(tableDiv);
+
+      // Footer
+      const footer = document.createElement("div");
+      footer.style.cssText = "margin-top:16px;padding-top:12px;border-top:2px solid #0d9488;font-size:12px;";
+      let footerHtml = `<div style="font-weight:700;font-size:14px;margin-bottom:8px;">Total General: ${formatUSD(grandTotal)}</div>`;
+      footerHtml += `<div style="color:#555;">`;
+      Object.entries(byProv).forEach(([name, { total, count }]) => {
+        footerHtml += `<span style="margin-right:16px;">${name}: ${formatUSD(total)} — ${count} factura${count > 1 ? "s" : ""}</span>`;
+      });
+      footerHtml += `</div>`;
+      footer.innerHTML = footerHtml;
+      container.appendChild(footer);
+
+      document.body.appendChild(container);
+
+      const canvas = await html2canvas(container, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
+      document.body.removeChild(container);
+
       const fileName = `programacion_${selectedSemana}`;
       if (format === "png" || format === "jpg") {
         const link = document.createElement("a");
         link.download = `${fileName}.${format}`;
-        link.href = canvas.toDataURL(`image/${format === "jpg" ? "jpeg" : "png"}`);
+        link.href = canvas.toDataURL(`image/${format === "jpg" ? "jpeg" : "png"}`, 0.95);
         link.click();
       } else {
         const imgData = canvas.toDataURL("image/png");
-        const pdf = new jsPDF({ orientation: canvas.width > canvas.height ? "landscape" : "portrait", unit: "px", format: [canvas.width, canvas.height] });
+        const pdf = new jsPDF({ orientation: "landscape", unit: "px", format: [canvas.width, canvas.height] });
         pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
         pdf.save(`${fileName}.pdf`);
       }
@@ -248,7 +315,7 @@ export default function ProgramacionPage() {
               <Button variant="outline" size="sm" onClick={handleApproveAll}><CheckCircle2 size={16} /> Aprobar Todas</Button>
             </div>
           )}
-          <div className="bg-card rounded-lg card-shadow overflow-hidden" ref={tableRef}>
+          <div className="bg-card rounded-lg card-shadow overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow>
