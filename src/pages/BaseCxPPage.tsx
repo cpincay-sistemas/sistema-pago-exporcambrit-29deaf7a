@@ -38,10 +38,32 @@ export default function BaseCxPPage() {
     });
   }, [facturas]);
 
+  const years = useMemo(() => {
+    const set = new Set<string>();
+    enriched.forEach((f) => {
+      if (f.periodo) {
+        const y = f.periodo.substring(0, 4);
+        if (y.length === 4) set.add(y);
+      }
+    });
+    return [...set].sort().reverse();
+  }, [enriched]);
+
+  const MONTHS = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"];
+  const MONTH_LABELS = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+
   const filtered = useMemo(() => {
     return enriched
       .filter((f) => {
         if (prioridadFilter !== "ALL" && f.prioridad !== prioridadFilter) return false;
+        if (yearFilter !== "ALL") {
+          const y = f.periodo?.substring(0, 4) || "";
+          if (y !== yearFilter) return false;
+        }
+        if (monthFilter !== "ALL") {
+          const m = f.periodo?.substring(5, 7) || "";
+          if (m !== monthFilter) return false;
+        }
         if (search) {
           const q = search.toLowerCase();
           return f.razon_social.toLowerCase().includes(q) || f.numero_factura.toLowerCase().includes(q) || f.motivo.toLowerCase().includes(q);
@@ -49,7 +71,7 @@ export default function BaseCxPPage() {
         return true;
       })
       .sort((a, b) => b.dias_vencidos - a.dias_vencidos);
-  }, [enriched, search, prioridadFilter]);
+  }, [enriched, search, prioridadFilter, yearFilter, monthFilter]);
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
