@@ -173,7 +173,7 @@ export default function ProgramacionPage() {
 
   const limiteUsado = (totalAprobado / limite) * 100;
 
-  const tableRef = useRef<HTMLDivElement>(null);
+  
 
   const handleExportProgramacion = async (format: "pdf" | "jpg" | "png") => {
     if (lineas.length === 0) { toast.error("No hay líneas para exportar"); return; }
