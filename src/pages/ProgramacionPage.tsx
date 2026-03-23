@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Plus, Trash2, CheckCircle2, XCircle, Download, Undo2 } from "lucide-react";
@@ -76,9 +77,8 @@ export default function ProgramacionPage() {
   const proveedoresActivos = useMemo(() => proveedores.filter((p) => p.activo).sort((a, b) => a.razon_social.localeCompare(b.razon_social)), [proveedores]);
 
   const [newProveedorId, setNewProveedorId] = useState("");
-  const [newFacturaId, setNewFacturaId] = useState("");
+  const [selectedFacturaIds, setSelectedFacturaIds] = useState<string[]>([]);
   const [newFormaPago, setNewFormaPago] = useState<FormaPago>("TRANSFERENCIA");
-  const [newMonto, setNewMonto] = useState("");
   const [newObs, setNewObs] = useState("");
   const [newResponsable, setNewResponsable] = useState("");
   const [newFechaProg, setNewFechaProg] = useState(new Date().toISOString().split("T")[0]);
@@ -89,43 +89,64 @@ export default function ProgramacionPage() {
     return facturas.filter((f) => f.codigo_proveedor === selectedProveedor.codigo);
   }, [facturas, selectedProveedor]);
 
-  const selectedFactura = facturas.find((f) => f.id === newFacturaId);
-  const saldoReal = selectedFactura ? getSaldoRealPendiente(selectedFactura.numero_factura) : 0;
+  const facturasConSaldo = useMemo(() => {
+    return facturasProveedor.map((f) => ({
+      ...f,
+      saldoReal: getSaldoRealPendiente(f.numero_factura),
+    }));
+  }, [facturasProveedor, historico]);
+
+  const selectedFacturasTotal = useMemo(() => {
+    return facturasConSaldo
+      .filter((f) => selectedFacturaIds.includes(f.id))
+      .reduce((sum, f) => sum + f.saldoReal, 0);
+  }, [facturasConSaldo, selectedFacturaIds]);
+
+  const toggleFactura = (id: string) => {
+    setSelectedFacturaIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
 
   const handleAddLine = async () => {
-    if (!selectedProveedor || !selectedFactura) { toast.error("Seleccione proveedor y factura"); return; }
-    const monto = parseFloat(newMonto) || saldoReal;
-    if (monto <= 0) { toast.error("El monto debe ser mayor a 0"); return; }
-    if (monto > saldoReal) { toast.error(`El monto no puede exceder el saldo real pendiente (${formatUSD(saldoReal)})`); return; }
+    if (!selectedProveedor || selectedFacturaIds.length === 0) { toast.error("Seleccione proveedor y al menos una factura"); return; }
 
     try {
       const prog = await ensureProgramacion();
-      const existing = lineas.find((l) => l.numero_factura === selectedFactura.numero_factura);
-      if (existing) { toast.error("Esta factura ya está programada en esta semana"); return; }
-      if (totalAprobado + monto > limite) toast.warning("El monto excede el límite disponible de la semana");
+      let added = 0;
+      for (const fId of selectedFacturaIds) {
+        const f = facturasConSaldo.find((x) => x.id === fId);
+        if (!f) continue;
+        const saldo = f.saldoReal;
+        if (saldo <= 0) { toast.warning(`Factura ${f.numero_factura} sin saldo pendiente, omitida`); continue; }
+        const existing = lineas.find((l) => l.numero_factura === f.numero_factura);
+        if (existing) { toast.warning(`Factura ${f.numero_factura} ya programada, omitida`); continue; }
+        if (totalAprobado + saldo > limite) toast.warning(`${f.numero_factura}: monto excede el límite`);
 
-      const diasVencidos = calcularDiasVencidos(selectedFactura.fecha_vencimiento);
-      await addLineaProgramacion.mutateAsync({
-        semana_id: prog.id,
-        razon_social: selectedProveedor.razon_social,
-        codigo_proveedor: selectedProveedor.codigo,
-        numero_factura: selectedFactura.numero_factura,
-        fecha_vencimiento: selectedFactura.fecha_vencimiento,
-        estado_aprobacion: "PENDIENTE",
-        dias_vencidos: diasVencidos,
-        prioridad: calcularPrioridad(diasVencidos),
-        forma_pago: newFormaPago,
-        banco_destino: selectedProveedor.banco,
-        cuenta_destino: selectedProveedor.numero_cuenta,
-        saldo_real_pendiente: saldoReal,
-        monto_a_pagar: monto,
-        observaciones: newObs,
-        responsable_pago: newResponsable || profile?.nombre || "",
-        fecha_programada: newFechaProg,
-      });
-      toast.success("Línea agregada a la programación");
+        const diasVencidos = calcularDiasVencidos(f.fecha_vencimiento);
+        await addLineaProgramacion.mutateAsync({
+          semana_id: prog.id,
+          razon_social: selectedProveedor.razon_social,
+          codigo_proveedor: selectedProveedor.codigo,
+          numero_factura: f.numero_factura,
+          fecha_vencimiento: f.fecha_vencimiento,
+          estado_aprobacion: "PENDIENTE",
+          dias_vencidos: diasVencidos,
+          prioridad: calcularPrioridad(diasVencidos),
+          forma_pago: newFormaPago,
+          banco_destino: selectedProveedor.banco,
+          cuenta_destino: selectedProveedor.numero_cuenta,
+          saldo_real_pendiente: saldo,
+          monto_a_pagar: saldo,
+          observaciones: newObs,
+          responsable_pago: newResponsable || profile?.nombre || "",
+          fecha_programada: newFechaProg,
+        });
+        added++;
+      }
+      toast.success(`${added} línea(s) agregada(s) a la programación`);
       setShowAddDialog(false);
-      setNewProveedorId(""); setNewFacturaId(""); setNewMonto(""); setNewObs("");
+      setNewProveedorId(""); setSelectedFacturaIds([]); setNewObs("");
     } catch (err: any) {
       toast.error(err.message || "Error al agregar línea");
     }
@@ -423,7 +444,7 @@ export default function ProgramacionPage() {
           <div className="space-y-4">
             <div>
               <label className="text-sm font-medium mb-1 block">Proveedor</label>
-              <Select value={newProveedorId} onValueChange={(v) => { setNewProveedorId(v); setNewFacturaId(""); setNewMonto(""); }}>
+              <Select value={newProveedorId} onValueChange={(v) => { setNewProveedorId(v); setSelectedFacturaIds([]); }}>
                 <SelectTrigger><SelectValue placeholder="Seleccione proveedor" /></SelectTrigger>
                 <SelectContent>
                   {proveedoresActivos.map((p) => (<SelectItem key={p.id} value={p.id}>{p.razon_social}</SelectItem>))}
@@ -437,34 +458,43 @@ export default function ProgramacionPage() {
               </div>
             )}
             <div>
-              <label className="text-sm font-medium mb-1 block">Factura</label>
-              <Select value={newFacturaId} onValueChange={(v) => { setNewFacturaId(v); setNewMonto(""); }}>
-                <SelectTrigger><SelectValue placeholder="Seleccione factura" /></SelectTrigger>
-                <SelectContent>
-                  {facturasProveedor.map((f) => (<SelectItem key={f.id} value={f.id}>{f.numero_factura} — {formatUSD(Number(f.saldo_total))}</SelectItem>))}
-                </SelectContent>
-              </Select>
+              <label className="text-sm font-medium mb-1 block">Facturas</label>
+              {facturasConSaldo.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  {selectedProveedor ? "No hay facturas para este proveedor" : "Seleccione un proveedor primero"}
+                </p>
+              ) : (
+                <div className="border rounded-md max-h-48 overflow-y-auto">
+                  {facturasConSaldo.map((f) => (
+                    <label key={f.id} className="flex items-center gap-3 px-3 py-2 hover:bg-muted cursor-pointer border-b last:border-b-0">
+                      <Checkbox
+                        checked={selectedFacturaIds.includes(f.id)}
+                        onCheckedChange={() => toggleFactura(f.id)}
+                      />
+                      <span className="text-sm font-mono flex-1">{f.numero_factura}</span>
+                      <span className="text-sm tabular-nums font-medium">{formatUSD(f.saldoReal)}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+              {selectedFacturaIds.length > 0 && (
+                <div className="mt-2 p-2 bg-muted rounded-md flex justify-between items-center text-sm">
+                  <span className="text-muted-foreground">{selectedFacturaIds.length} factura(s) seleccionada(s)</span>
+                  <span className="font-semibold tabular-nums">Total: {formatUSD(selectedFacturasTotal)}</span>
+                </div>
+              )}
             </div>
-            {selectedFactura && (
-              <div className="grid grid-cols-2 gap-2 p-3 bg-muted rounded-md text-xs">
-                <div><span className="text-muted-foreground">Motivo:</span> {selectedFactura.motivo}</div>
-                <div><span className="text-muted-foreground">Vencimiento:</span> {formatDate(selectedFactura.fecha_vencimiento)}</div>
-                <div><span className="text-muted-foreground">Saldo Real Pendiente:</span> <strong>{formatUSD(saldoReal)}</strong></div>
-                <div><span className="text-muted-foreground">Prioridad:</span> <PrioridadBadge prioridad={calcularPrioridad(calcularDiasVencidos(selectedFactura.fecha_vencimiento))} /></div>
-              </div>
-            )}
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-sm font-medium mb-1 block">Monto a Pagar</label>
-                <Input type="number" step="0.01" placeholder={saldoReal > 0 ? saldoReal.toFixed(2) : "0.00"} value={newMonto} onChange={(e) => setNewMonto(e.target.value)} />
-                <p className="text-xs text-muted-foreground mt-0.5">Máx: {formatUSD(saldoReal)}</p>
-              </div>
               <div>
                 <label className="text-sm font-medium mb-1 block">Forma de Pago</label>
                 <Select value={newFormaPago} onValueChange={(v) => setNewFormaPago(v as FormaPago)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>{FORMAS_PAGO.map((fp) => (<SelectItem key={fp} value={fp}>{fp}</SelectItem>))}</SelectContent>
                 </Select>
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1 block">Fecha Programada</label>
+                <Input type="date" value={newFechaProg} onChange={(e) => setNewFechaProg(e.target.value)} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -473,18 +503,16 @@ export default function ProgramacionPage() {
                 <Input value={newResponsable || profile?.nombre || ""} onChange={(e) => setNewResponsable(e.target.value)} />
               </div>
               <div>
-                <label className="text-sm font-medium mb-1 block">Fecha Programada</label>
-                <Input type="date" value={newFechaProg} onChange={(e) => setNewFechaProg(e.target.value)} />
+                <label className="text-sm font-medium mb-1 block">Observaciones</label>
+                <Input value={newObs} onChange={(e) => setNewObs(e.target.value)} placeholder="Opcional" />
               </div>
-            </div>
-            <div>
-              <label className="text-sm font-medium mb-1 block">Observaciones</label>
-              <Input value={newObs} onChange={(e) => setNewObs(e.target.value)} placeholder="Opcional" />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAddDialog(false)}>Cancelar</Button>
-            <Button onClick={handleAddLine}>Agregar</Button>
+            <Button onClick={handleAddLine} disabled={selectedFacturaIds.length === 0}>
+              Agregar {selectedFacturaIds.length > 0 ? `${selectedFacturaIds.length} línea(s)` : ""}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
