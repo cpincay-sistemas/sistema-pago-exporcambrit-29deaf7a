@@ -65,8 +65,8 @@ export default function AuthPage() {
           <div className="h-12 w-12 rounded-lg bg-primary mx-auto flex items-center justify-center mb-3">
             <span className="text-primary-foreground font-bold text-lg">CP</span>
           </div>
-          <h1 className="text-xl font-bold">CamaroPay</h1>
-          <p className="text-sm text-muted-foreground">Gestión de Pagos</p>
+          <h1 className="text-xl font-bold">EXPORCAMBRIT</h1>
+          <p className="text-sm text-muted-foreground">Sistema de Pagos CP1</p>
         </div>
 
         <div className="bg-card rounded-lg card-shadow p-6">
