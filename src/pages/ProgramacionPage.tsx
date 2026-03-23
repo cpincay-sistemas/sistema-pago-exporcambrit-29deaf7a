@@ -398,6 +398,7 @@ export default function ProgramacionPage() {
                           <Button variant="ghost" size="sm" className="h-7 text-xs text-blue-700" onClick={() => handleRevert(l.id)}>
                             <Undo2 size={14} /> Reactivar
                           </Button>
+                        )}
                         {canWrite() && (
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" onClick={() => handleDelete(l.id)}><Trash2 size={15} /></Button>
                         )}
