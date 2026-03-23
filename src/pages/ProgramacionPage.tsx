@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Trash2, CheckCircle2, XCircle, Download } from "lucide-react";
+import { Plus, Trash2, CheckCircle2, XCircle, Download, Undo2 } from "lucide-react";
 import type { FormaPago, EstadoAprobacion } from "@/types";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
@@ -138,6 +138,10 @@ export default function ProgramacionPage() {
   const handleReject = async (id: string) => {
     await updateLineaProgramacion.mutateAsync({ id, estado_aprobacion: "RECHAZADO" });
     toast.info("Línea rechazada");
+  };
+  const handleRevert = async (id: string) => {
+    await updateLineaProgramacion.mutateAsync({ id, estado_aprobacion: "PENDIENTE" });
+    toast.info("Línea revertida a pendiente");
   };
   const handleDelete = async (id: string) => {
     await deleteLineaProgramacion.mutateAsync(id);
@@ -384,6 +388,16 @@ export default function ProgramacionPage() {
                             <Button variant="ghost" size="icon" className="h-7 w-7 text-[hsl(var(--success))]" onClick={() => handleApprove(l.id)}><CheckCircle2 size={15} /></Button>
                             <Button variant="ghost" size="icon" className="h-7 w-7 text-[hsl(var(--danger))]" onClick={() => handleReject(l.id)}><XCircle size={15} /></Button>
                           </>
+                        )}
+                        {l.estado_aprobacion === "APROBADO" && canApprove() && (
+                          <Button variant="ghost" size="sm" className="h-7 text-xs text-yellow-700" onClick={() => handleRevert(l.id)}>
+                            <Undo2 size={14} /> Desaprobar
+                          </Button>
+                        )}
+                        {l.estado_aprobacion === "RECHAZADO" && canApprove() && (
+                          <Button variant="ghost" size="sm" className="h-7 text-xs text-blue-700" onClick={() => handleRevert(l.id)}>
+                            <Undo2 size={14} /> Reactivar
+                          </Button>
                         )}
                         {canWrite() && (
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" onClick={() => handleDelete(l.id)}><Trash2 size={15} /></Button>
