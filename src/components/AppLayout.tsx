@@ -84,7 +84,7 @@ export default function AppLayout() {
         </nav>
 
         <div className="px-5 py-4 border-t border-sidebar-border">
-          <p className="text-[11px] text-sidebar-muted">v1.0 — Empresa Camaronera</p>
+          <p className="text-[11px] text-sidebar-muted">v1.0 — EXPORCAMBRIT</p>
         </div>
       </aside>
 

@@ -229,16 +229,42 @@ export default function ProgramacionPage() {
       tableDiv.innerHTML = tableHtml;
       container.appendChild(tableDiv);
 
-      // Footer
+      // Footer — summary table
       const footer = document.createElement("div");
-      footer.style.cssText = "margin-top:16px;padding-top:12px;border-top:2px solid #0d9488;font-size:12px;";
-      let footerHtml = `<div style="font-weight:700;font-size:14px;margin-bottom:8px;">Total General: ${formatUSD(grandTotal)}</div>`;
-      footerHtml += `<div style="color:#555;">`;
-      Object.entries(byProv).forEach(([name, { total, count }]) => {
-        footerHtml += `<span style="margin-right:16px;">${name}: ${formatUSD(total)} — ${count} factura${count > 1 ? "s" : ""}</span>`;
+      footer.style.cssText = "margin-top:20px;padding-top:16px;border-top:2px solid #0d9488;font-size:13px;";
+
+      const sortedProvs = Object.entries(byProv).sort((a, b) => b[1].total - a[1].total);
+      const totalFacturas = sortedProvs.reduce((s, [, v]) => s + v.count, 0);
+
+      let summaryHtml = `<div style="font-weight:700;font-size:15px;margin-bottom:12px;">RESUMEN POR PROVEEDOR</div>`;
+      summaryHtml += `<table style="width:100%;border-collapse:collapse;font-size:13px;border:1px solid #d1d5db;">`;
+      summaryHtml += `<thead><tr style="background:#1f2937;color:#fff;">
+        <th style="padding:8px 10px;text-align:center;border:1px solid #d1d5db;">N°</th>
+        <th style="padding:8px 10px;text-align:left;border:1px solid #d1d5db;">Proveedor</th>
+        <th style="padding:8px 10px;text-align:center;border:1px solid #d1d5db;">Facturas</th>
+        <th style="padding:8px 10px;text-align:right;border:1px solid #d1d5db;">Monto Total</th>
+      </tr></thead><tbody>`;
+      sortedProvs.forEach(([name, { total, count }], idx) => {
+        const bg = idx % 2 === 0 ? "#fff" : "#f3f4f6";
+        summaryHtml += `<tr style="background:${bg};">
+          <td style="padding:6px 10px;text-align:center;border:1px solid #e5e7eb;">${idx + 1}</td>
+          <td style="padding:6px 10px;border:1px solid #e5e7eb;">${name}</td>
+          <td style="padding:6px 10px;text-align:center;border:1px solid #e5e7eb;">${count}</td>
+          <td style="padding:6px 10px;text-align:right;border:1px solid #e5e7eb;font-variant-numeric:tabular-nums;">${formatUSD(total)}</td>
+        </tr>`;
       });
-      footerHtml += `</div>`;
-      footer.innerHTML = footerHtml;
+      summaryHtml += `<tr style="background:#1e3a5f;color:#fff;font-weight:700;">
+        <td style="padding:8px 10px;text-align:center;border:1px solid #d1d5db;" colspan="2">TOTAL GENERAL</td>
+        <td style="padding:8px 10px;text-align:center;border:1px solid #d1d5db;">${totalFacturas}</td>
+        <td style="padding:8px 10px;text-align:right;border:1px solid #d1d5db;font-variant-numeric:tabular-nums;">${formatUSD(grandTotal)}</td>
+      </tr>`;
+      summaryHtml += `</tbody></table>`;
+
+      const now = new Date();
+      const timestamp = `${now.getDate().toString().padStart(2, "0")}/${(now.getMonth() + 1).toString().padStart(2, "0")}/${now.getFullYear()} ${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
+      summaryHtml += `<div style="margin-top:12px;font-size:11px;color:#888;text-align:right;">Generado por EXPORCAMBRIT — ${timestamp}</div>`;
+
+      footer.innerHTML = summaryHtml;
       container.appendChild(footer);
 
       document.body.appendChild(container);
