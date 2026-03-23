@@ -108,39 +108,44 @@ export default function ProgramacionPage() {
   };
 
   const handleAddLine = async () => {
-    if (!selectedProveedor || !selectedFactura) { toast.error("Seleccione proveedor y factura"); return; }
-    const monto = parseFloat(newMonto) || saldoReal;
-    if (monto <= 0) { toast.error("El monto debe ser mayor a 0"); return; }
-    if (monto > saldoReal) { toast.error(`El monto no puede exceder el saldo real pendiente (${formatUSD(saldoReal)})`); return; }
+    if (!selectedProveedor || selectedFacturaIds.length === 0) { toast.error("Seleccione proveedor y al menos una factura"); return; }
 
     try {
       const prog = await ensureProgramacion();
-      const existing = lineas.find((l) => l.numero_factura === selectedFactura.numero_factura);
-      if (existing) { toast.error("Esta factura ya está programada en esta semana"); return; }
-      if (totalAprobado + monto > limite) toast.warning("El monto excede el límite disponible de la semana");
+      let added = 0;
+      for (const fId of selectedFacturaIds) {
+        const f = facturasConSaldo.find((x) => x.id === fId);
+        if (!f) continue;
+        const saldo = f.saldoReal;
+        if (saldo <= 0) { toast.warning(`Factura ${f.numero_factura} sin saldo pendiente, omitida`); continue; }
+        const existing = lineas.find((l) => l.numero_factura === f.numero_factura);
+        if (existing) { toast.warning(`Factura ${f.numero_factura} ya programada, omitida`); continue; }
+        if (totalAprobado + saldo > limite) toast.warning(`${f.numero_factura}: monto excede el límite`);
 
-      const diasVencidos = calcularDiasVencidos(selectedFactura.fecha_vencimiento);
-      await addLineaProgramacion.mutateAsync({
-        semana_id: prog.id,
-        razon_social: selectedProveedor.razon_social,
-        codigo_proveedor: selectedProveedor.codigo,
-        numero_factura: selectedFactura.numero_factura,
-        fecha_vencimiento: selectedFactura.fecha_vencimiento,
-        estado_aprobacion: "PENDIENTE",
-        dias_vencidos: diasVencidos,
-        prioridad: calcularPrioridad(diasVencidos),
-        forma_pago: newFormaPago,
-        banco_destino: selectedProveedor.banco,
-        cuenta_destino: selectedProveedor.numero_cuenta,
-        saldo_real_pendiente: saldoReal,
-        monto_a_pagar: monto,
-        observaciones: newObs,
-        responsable_pago: newResponsable || profile?.nombre || "",
-        fecha_programada: newFechaProg,
-      });
-      toast.success("Línea agregada a la programación");
+        const diasVencidos = calcularDiasVencidos(f.fecha_vencimiento);
+        await addLineaProgramacion.mutateAsync({
+          semana_id: prog.id,
+          razon_social: selectedProveedor.razon_social,
+          codigo_proveedor: selectedProveedor.codigo,
+          numero_factura: f.numero_factura,
+          fecha_vencimiento: f.fecha_vencimiento,
+          estado_aprobacion: "PENDIENTE",
+          dias_vencidos: diasVencidos,
+          prioridad: calcularPrioridad(diasVencidos),
+          forma_pago: newFormaPago,
+          banco_destino: selectedProveedor.banco,
+          cuenta_destino: selectedProveedor.numero_cuenta,
+          saldo_real_pendiente: saldo,
+          monto_a_pagar: saldo,
+          observaciones: newObs,
+          responsable_pago: newResponsable || profile?.nombre || "",
+          fecha_programada: newFechaProg,
+        });
+        added++;
+      }
+      toast.success(`${added} línea(s) agregada(s) a la programación`);
       setShowAddDialog(false);
-      setNewProveedorId(""); setNewFacturaId(""); setNewMonto(""); setNewObs("");
+      setNewProveedorId(""); setSelectedFacturaIds([]); setNewObs("");
     } catch (err: any) {
       toast.error(err.message || "Error al agregar línea");
     }
