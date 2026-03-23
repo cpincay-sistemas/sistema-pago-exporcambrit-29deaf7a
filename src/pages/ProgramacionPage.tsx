@@ -389,6 +389,15 @@ export default function ProgramacionPage() {
                             <Button variant="ghost" size="icon" className="h-7 w-7 text-[hsl(var(--danger))]" onClick={() => handleReject(l.id)}><XCircle size={15} /></Button>
                           </>
                         )}
+                        {l.estado_aprobacion === "APROBADO" && canApprove() && (
+                          <Button variant="ghost" size="sm" className="h-7 text-xs text-yellow-700" onClick={() => handleRevert(l.id)}>
+                            <Undo2 size={14} /> Desaprobar
+                          </Button>
+                        )}
+                        {l.estado_aprobacion === "RECHAZADO" && canApprove() && (
+                          <Button variant="ghost" size="sm" className="h-7 text-xs text-blue-700" onClick={() => handleRevert(l.id)}>
+                            <Undo2 size={14} /> Reactivar
+                          </Button>
                         {canWrite() && (
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" onClick={() => handleDelete(l.id)}><Trash2 size={15} /></Button>
                         )}
