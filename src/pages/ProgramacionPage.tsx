@@ -443,7 +443,7 @@ export default function ProgramacionPage() {
           <div className="space-y-4">
             <div>
               <label className="text-sm font-medium mb-1 block">Proveedor</label>
-              <Select value={newProveedorId} onValueChange={(v) => { setNewProveedorId(v); setNewFacturaId(""); setNewMonto(""); }}>
+              <Select value={newProveedorId} onValueChange={(v) => { setNewProveedorId(v); setSelectedFacturaIds([]); }}>
                 <SelectTrigger><SelectValue placeholder="Seleccione proveedor" /></SelectTrigger>
                 <SelectContent>
                   {proveedoresActivos.map((p) => (<SelectItem key={p.id} value={p.id}>{p.razon_social}</SelectItem>))}
@@ -457,34 +457,43 @@ export default function ProgramacionPage() {
               </div>
             )}
             <div>
-              <label className="text-sm font-medium mb-1 block">Factura</label>
-              <Select value={newFacturaId} onValueChange={(v) => { setNewFacturaId(v); setNewMonto(""); }}>
-                <SelectTrigger><SelectValue placeholder="Seleccione factura" /></SelectTrigger>
-                <SelectContent>
-                  {facturasProveedor.map((f) => (<SelectItem key={f.id} value={f.id}>{f.numero_factura} — {formatUSD(Number(f.saldo_total))}</SelectItem>))}
-                </SelectContent>
-              </Select>
+              <label className="text-sm font-medium mb-1 block">Facturas</label>
+              {facturasConSaldo.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  {selectedProveedor ? "No hay facturas para este proveedor" : "Seleccione un proveedor primero"}
+                </p>
+              ) : (
+                <div className="border rounded-md max-h-48 overflow-y-auto">
+                  {facturasConSaldo.map((f) => (
+                    <label key={f.id} className="flex items-center gap-3 px-3 py-2 hover:bg-muted cursor-pointer border-b last:border-b-0">
+                      <Checkbox
+                        checked={selectedFacturaIds.includes(f.id)}
+                        onCheckedChange={() => toggleFactura(f.id)}
+                      />
+                      <span className="text-sm font-mono flex-1">{f.numero_factura}</span>
+                      <span className="text-sm tabular-nums font-medium">{formatUSD(f.saldoReal)}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+              {selectedFacturaIds.length > 0 && (
+                <div className="mt-2 p-2 bg-muted rounded-md flex justify-between items-center text-sm">
+                  <span className="text-muted-foreground">{selectedFacturaIds.length} factura(s) seleccionada(s)</span>
+                  <span className="font-semibold tabular-nums">Total: {formatUSD(selectedFacturasTotal)}</span>
+                </div>
+              )}
             </div>
-            {selectedFactura && (
-              <div className="grid grid-cols-2 gap-2 p-3 bg-muted rounded-md text-xs">
-                <div><span className="text-muted-foreground">Motivo:</span> {selectedFactura.motivo}</div>
-                <div><span className="text-muted-foreground">Vencimiento:</span> {formatDate(selectedFactura.fecha_vencimiento)}</div>
-                <div><span className="text-muted-foreground">Saldo Real Pendiente:</span> <strong>{formatUSD(saldoReal)}</strong></div>
-                <div><span className="text-muted-foreground">Prioridad:</span> <PrioridadBadge prioridad={calcularPrioridad(calcularDiasVencidos(selectedFactura.fecha_vencimiento))} /></div>
-              </div>
-            )}
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-sm font-medium mb-1 block">Monto a Pagar</label>
-                <Input type="number" step="0.01" placeholder={saldoReal > 0 ? saldoReal.toFixed(2) : "0.00"} value={newMonto} onChange={(e) => setNewMonto(e.target.value)} />
-                <p className="text-xs text-muted-foreground mt-0.5">Máx: {formatUSD(saldoReal)}</p>
-              </div>
               <div>
                 <label className="text-sm font-medium mb-1 block">Forma de Pago</label>
                 <Select value={newFormaPago} onValueChange={(v) => setNewFormaPago(v as FormaPago)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>{FORMAS_PAGO.map((fp) => (<SelectItem key={fp} value={fp}>{fp}</SelectItem>))}</SelectContent>
                 </Select>
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1 block">Fecha Programada</label>
+                <Input type="date" value={newFechaProg} onChange={(e) => setNewFechaProg(e.target.value)} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -493,18 +502,16 @@ export default function ProgramacionPage() {
                 <Input value={newResponsable || profile?.nombre || ""} onChange={(e) => setNewResponsable(e.target.value)} />
               </div>
               <div>
-                <label className="text-sm font-medium mb-1 block">Fecha Programada</label>
-                <Input type="date" value={newFechaProg} onChange={(e) => setNewFechaProg(e.target.value)} />
+                <label className="text-sm font-medium mb-1 block">Observaciones</label>
+                <Input value={newObs} onChange={(e) => setNewObs(e.target.value)} placeholder="Opcional" />
               </div>
-            </div>
-            <div>
-              <label className="text-sm font-medium mb-1 block">Observaciones</label>
-              <Input value={newObs} onChange={(e) => setNewObs(e.target.value)} placeholder="Opcional" />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAddDialog(false)}>Cancelar</Button>
-            <Button onClick={handleAddLine}>Agregar</Button>
+            <Button onClick={handleAddLine} disabled={selectedFacturaIds.length === 0}>
+              Agregar {selectedFacturaIds.length > 0 ? `${selectedFacturaIds.length} línea(s)` : ""}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
