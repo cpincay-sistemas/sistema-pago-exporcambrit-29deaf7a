@@ -54,8 +54,8 @@ export default function AppLayout() {
             <span className="text-sidebar-primary-foreground font-bold text-sm">CP</span>
           </div>
           <div>
-            <h1 className="text-sm font-semibold text-sidebar-primary-foreground leading-none">CamaroPay</h1>
-            <p className="text-[11px] text-sidebar-muted mt-0.5">Gestión de Pagos</p>
+            <h1 className="text-sm font-semibold text-sidebar-primary-foreground leading-none">EXPORCAMBRIT</h1>
+            <p className="text-[11px] text-sidebar-muted mt-0.5">Sistema de Pagos CP1</p>
           </div>
           <button className="ml-auto lg:hidden text-sidebar-foreground" onClick={() => setMobileOpen(false)}>
             <X size={20} />
