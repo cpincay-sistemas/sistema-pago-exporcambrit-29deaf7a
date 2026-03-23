@@ -139,6 +139,10 @@ export default function ProgramacionPage() {
     await updateLineaProgramacion.mutateAsync({ id, estado_aprobacion: "RECHAZADO" });
     toast.info("Línea rechazada");
   };
+  const handleRevert = async (id: string) => {
+    await updateLineaProgramacion.mutateAsync({ id, estado_aprobacion: "PENDIENTE" });
+    toast.info("Línea revertida a pendiente");
+  };
   const handleDelete = async (id: string) => {
     await deleteLineaProgramacion.mutateAsync(id);
     toast.info("Línea eliminada");
