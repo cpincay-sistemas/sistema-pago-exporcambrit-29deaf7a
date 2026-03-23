@@ -199,7 +199,7 @@ export default function ProgramacionPage() {
       // Header
       const header = document.createElement("div");
       header.style.cssText = "margin-bottom:20px;border-bottom:2px solid #0d9488;padding-bottom:12px;";
-      header.innerHTML = `<div style="font-size:20px;font-weight:700;color:#0d9488;">CamaroPay</div><div style="font-size:14px;color:#555;margin-top:4px;">Programación ${selectedSemana} — ${dateStr}</div>`;
+      header.innerHTML = `<div style="font-size:20px;font-weight:700;color:#0d9488;">EXPORCAMBRIT</div><div style="font-size:14px;color:#555;margin-top:4px;">Programación ${selectedSemana} — ${dateStr}</div>`;
       container.appendChild(header);
 
       // Table
