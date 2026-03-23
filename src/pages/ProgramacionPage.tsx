@@ -76,9 +76,8 @@ export default function ProgramacionPage() {
   const proveedoresActivos = useMemo(() => proveedores.filter((p) => p.activo).sort((a, b) => a.razon_social.localeCompare(b.razon_social)), [proveedores]);
 
   const [newProveedorId, setNewProveedorId] = useState("");
-  const [newFacturaId, setNewFacturaId] = useState("");
+  const [selectedFacturaIds, setSelectedFacturaIds] = useState<string[]>([]);
   const [newFormaPago, setNewFormaPago] = useState<FormaPago>("TRANSFERENCIA");
-  const [newMonto, setNewMonto] = useState("");
   const [newObs, setNewObs] = useState("");
   const [newResponsable, setNewResponsable] = useState("");
   const [newFechaProg, setNewFechaProg] = useState(new Date().toISOString().split("T")[0]);
@@ -89,8 +88,24 @@ export default function ProgramacionPage() {
     return facturas.filter((f) => f.codigo_proveedor === selectedProveedor.codigo);
   }, [facturas, selectedProveedor]);
 
-  const selectedFactura = facturas.find((f) => f.id === newFacturaId);
-  const saldoReal = selectedFactura ? getSaldoRealPendiente(selectedFactura.numero_factura) : 0;
+  const facturasConSaldo = useMemo(() => {
+    return facturasProveedor.map((f) => ({
+      ...f,
+      saldoReal: getSaldoRealPendiente(f.numero_factura),
+    }));
+  }, [facturasProveedor, historico]);
+
+  const selectedFacturasTotal = useMemo(() => {
+    return facturasConSaldo
+      .filter((f) => selectedFacturaIds.includes(f.id))
+      .reduce((sum, f) => sum + f.saldoReal, 0);
+  }, [facturasConSaldo, selectedFacturaIds]);
+
+  const toggleFactura = (id: string) => {
+    setSelectedFacturaIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
 
   const handleAddLine = async () => {
     if (!selectedProveedor || !selectedFactura) { toast.error("Seleccione proveedor y factura"); return; }
