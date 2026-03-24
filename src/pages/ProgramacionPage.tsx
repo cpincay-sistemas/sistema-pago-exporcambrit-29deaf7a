@@ -101,17 +101,22 @@ export default function ProgramacionPage() {
     return facturasConSaldo.filter((f) => selectedFacturaIds.includes(f.id));
   }, [facturasConSaldo, selectedFacturaIds]);
 
+  const getMonto = (f: { id: string; saldoReal: number }) => {
+    if (f.saldoReal < 0) return f.saldoReal; // credits are fixed
+    return montosPorFactura[f.id] ?? f.saldoReal;
+  };
+
   const selectedFacturasTotal = useMemo(() => {
-    return selectedFacturas.reduce((sum, f) => sum + f.saldoReal, 0);
-  }, [selectedFacturas]);
+    return selectedFacturas.reduce((sum, f) => sum + getMonto(f), 0);
+  }, [selectedFacturas, montosPorFactura]);
 
   const selectedCreditos = useMemo(() => {
     return selectedFacturas.filter((f) => f.saldoReal < 0).reduce((sum, f) => sum + f.saldoReal, 0);
   }, [selectedFacturas]);
 
   const selectedSubtotal = useMemo(() => {
-    return selectedFacturas.filter((f) => f.saldoReal > 0).reduce((sum, f) => sum + f.saldoReal, 0);
-  }, [selectedFacturas]);
+    return selectedFacturas.filter((f) => f.saldoReal > 0).reduce((sum, f) => sum + getMonto(f), 0);
+  }, [selectedFacturas, montosPorFactura]);
 
   const hasCreditos = selectedCreditos < 0;
 
