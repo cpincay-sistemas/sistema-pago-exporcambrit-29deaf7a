@@ -498,9 +498,31 @@ export default function ProgramacionPage() {
                 </div>
               )}
               {selectedFacturaIds.length > 0 && (
-                <div className="mt-2 p-2 bg-muted rounded-md flex justify-between items-center text-sm">
-                  <span className="text-muted-foreground">{selectedFacturaIds.length} factura(s) seleccionada(s)</span>
-                  <span className="font-semibold tabular-nums">Total: {formatUSD(selectedFacturasTotal)}</span>
+                <div className="mt-2 p-2 bg-muted rounded-md text-sm space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">{selectedFacturaIds.length} factura(s) seleccionada(s)</span>
+                  </div>
+                  {hasCreditos ? (
+                    <>
+                      <div className="flex justify-between tabular-nums">
+                        <span className="text-muted-foreground">Subtotal facturas:</span>
+                        <span>{formatUSD(selectedSubtotal)}</span>
+                      </div>
+                      <div className="flex justify-between tabular-nums text-blue-600">
+                        <span>Créditos aplicados:</span>
+                        <span>{formatUSD(selectedCreditos)}</span>
+                      </div>
+                      <div className="flex justify-between tabular-nums font-semibold border-t pt-1">
+                        <span>Total neto a pagar:</span>
+                        <span>{formatUSD(selectedFacturasTotal)}</span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex justify-between tabular-nums font-semibold">
+                      <span>Total:</span>
+                      <span>{formatUSD(selectedFacturasTotal)}</span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
