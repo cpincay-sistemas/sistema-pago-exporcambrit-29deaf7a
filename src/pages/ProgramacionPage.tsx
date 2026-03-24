@@ -140,10 +140,12 @@ export default function ProgramacionPage() {
         const f = facturasConSaldo.find((x) => x.id === fId);
         if (!f) continue;
         const saldo = f.saldoReal;
+        const monto = getMonto(f);
         if (saldo === 0) { toast.warning(`Factura ${f.numero_factura} sin saldo pendiente, omitida`); continue; }
+        if (saldo > 0 && (monto <= 0 || monto > saldo)) { toast.error(`Factura ${f.numero_factura}: monto inválido`); continue; }
         const existing = lineas.find((l) => l.numero_factura === f.numero_factura);
         if (existing) { toast.warning(`Factura ${f.numero_factura} ya programada, omitida`); continue; }
-        if (totalAprobado + saldo > limite) toast.warning(`${f.numero_factura}: monto excede el límite`);
+        if (totalAprobado + monto > limite) toast.warning(`${f.numero_factura}: monto excede el límite`);
 
         const diasVencidos = calcularDiasVencidos(f.fecha_vencimiento);
         await addLineaProgramacion.mutateAsync({
@@ -159,7 +161,7 @@ export default function ProgramacionPage() {
           banco_destino: selectedProveedor.banco,
           cuenta_destino: selectedProveedor.numero_cuenta,
           saldo_real_pendiente: saldo,
-          monto_a_pagar: saldo,
+          monto_a_pagar: monto,
           observaciones: newObs,
           responsable_pago: newResponsable || profile?.nombre || "",
           fecha_programada: newFechaProg,
