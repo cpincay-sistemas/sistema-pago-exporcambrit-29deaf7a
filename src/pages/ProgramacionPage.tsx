@@ -170,7 +170,7 @@ export default function ProgramacionPage() {
       }
       toast.success(`${added} línea(s) agregada(s) a la programación`);
       setShowAddDialog(false);
-      setNewProveedorId(""); setSelectedFacturaIds([]); setNewObs("");
+      setNewProveedorId(""); setSelectedFacturaIds([]); setMontosPorFactura({}); setNewObs("");
     } catch (err: any) {
       toast.error(err.message || "Error al agregar línea");
     }
