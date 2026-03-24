@@ -130,7 +130,7 @@ export default function ProgramacionPage() {
         const f = facturasConSaldo.find((x) => x.id === fId);
         if (!f) continue;
         const saldo = f.saldoReal;
-        if (saldo <= 0) { toast.warning(`Factura ${f.numero_factura} sin saldo pendiente, omitida`); continue; }
+        if (saldo === 0) { toast.warning(`Factura ${f.numero_factura} sin saldo pendiente, omitida`); continue; }
         const existing = lineas.find((l) => l.numero_factura === f.numero_factura);
         if (existing) { toast.warning(`Factura ${f.numero_factura} ya programada, omitida`); continue; }
         if (totalAprobado + saldo > limite) toast.warning(`${f.numero_factura}: monto excede el límite`);
