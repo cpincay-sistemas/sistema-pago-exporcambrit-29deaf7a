@@ -121,9 +121,13 @@ export default function ProgramacionPage() {
   const hasCreditos = selectedCreditos < 0;
 
   const toggleFactura = (id: string) => {
-    setSelectedFacturaIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
+    setSelectedFacturaIds((prev) => {
+      if (prev.includes(id)) {
+        setMontosPorFactura((m) => { const n = { ...m }; delete n[id]; return n; });
+        return prev.filter((x) => x !== id);
+      }
+      return [...prev, id];
+    });
   };
 
   const handleAddLine = async () => {
