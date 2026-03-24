@@ -493,18 +493,37 @@ export default function ProgramacionPage() {
                     const isZero = f.saldoReal === 0;
                     const isCredit = f.saldoReal < 0;
                     return (
-                      <label key={f.id} className={`flex items-center gap-3 px-3 py-2 border-b last:border-b-0 ${isZero ? "opacity-50 cursor-not-allowed bg-gray-50" : "hover:bg-muted cursor-pointer"}`}>
-                        <Checkbox
-                          checked={selectedFacturaIds.includes(f.id)}
-                          onCheckedChange={() => toggleFactura(f.id)}
-                          disabled={isZero}
-                        />
-                        <span className="text-sm font-mono flex-1 flex items-center gap-2">
-                          {f.numero_factura}
-                          {isCredit && <Badge variant="secondary" className="bg-blue-100 text-blue-700 text-[10px]">CRÉDITO</Badge>}
+                      <div key={f.id} className={`flex items-center gap-2 px-3 py-2 border-b last:border-b-0 ${isZero ? "opacity-50 cursor-not-allowed bg-gray-50" : "hover:bg-muted"}`}>
+                        <label className="flex items-center gap-2 cursor-pointer min-w-0 flex-1">
+                          <Checkbox
+                            checked={selectedFacturaIds.includes(f.id)}
+                            onCheckedChange={() => toggleFactura(f.id)}
+                            disabled={isZero}
+                          />
+                          <span className="text-sm font-mono truncate flex items-center gap-1">
+                            {f.numero_factura}
+                            {isCredit && <Badge variant="secondary" className="bg-blue-100 text-blue-700 text-[10px]">CRÉDITO</Badge>}
+                          </span>
+                        </label>
+                        <span className={`text-xs tabular-nums whitespace-nowrap ${isCredit ? "text-blue-600" : "text-muted-foreground"}`}>
+                          Saldo: {formatUSD(f.saldoReal)}
                         </span>
-                        <span className={`text-sm tabular-nums font-medium ${isCredit ? "text-blue-600" : ""}`}>{formatUSD(f.saldoReal)}</span>
-                      </label>
+                        {selectedFacturaIds.includes(f.id) && !isCredit && !isZero && (
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0.01"
+                            max={f.saldoReal}
+                            className="w-28 h-7 text-xs tabular-nums text-right"
+                            value={montosPorFactura[f.id] ?? f.saldoReal}
+                            onChange={(e) => {
+                              const val = parseFloat(e.target.value);
+                              setMontosPorFactura((prev) => ({ ...prev, [f.id]: isNaN(val) ? 0 : val }));
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        )}
+                      </div>
                     );
                   })}
                 </div>
