@@ -477,16 +477,24 @@ export default function ProgramacionPage() {
                 </p>
               ) : (
                 <div className="border rounded-md max-h-48 overflow-y-auto">
-                  {facturasConSaldo.map((f) => (
-                    <label key={f.id} className="flex items-center gap-3 px-3 py-2 hover:bg-muted cursor-pointer border-b last:border-b-0">
-                      <Checkbox
-                        checked={selectedFacturaIds.includes(f.id)}
-                        onCheckedChange={() => toggleFactura(f.id)}
-                      />
-                      <span className="text-sm font-mono flex-1">{f.numero_factura}</span>
-                      <span className="text-sm tabular-nums font-medium">{formatUSD(f.saldoReal)}</span>
-                    </label>
-                  ))}
+              {facturasConSaldo.map((f) => {
+                    const isZero = f.saldoReal === 0;
+                    const isCredit = f.saldoReal < 0;
+                    return (
+                      <label key={f.id} className={`flex items-center gap-3 px-3 py-2 border-b last:border-b-0 ${isZero ? "opacity-50 cursor-not-allowed bg-gray-50" : "hover:bg-muted cursor-pointer"}`}>
+                        <Checkbox
+                          checked={selectedFacturaIds.includes(f.id)}
+                          onCheckedChange={() => toggleFactura(f.id)}
+                          disabled={isZero}
+                        />
+                        <span className="text-sm font-mono flex-1 flex items-center gap-2">
+                          {f.numero_factura}
+                          {isCredit && <Badge variant="secondary" className="bg-blue-100 text-blue-700 text-[10px]">CRÉDITO</Badge>}
+                        </span>
+                        <span className={`text-sm tabular-nums font-medium ${isCredit ? "text-blue-600" : ""}`}>{formatUSD(f.saldoReal)}</span>
+                      </label>
+                    );
+                  })}
                 </div>
               )}
               {selectedFacturaIds.length > 0 && (
