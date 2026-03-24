@@ -78,6 +78,7 @@ export default function ProgramacionPage() {
 
   const [newProveedorId, setNewProveedorId] = useState("");
   const [selectedFacturaIds, setSelectedFacturaIds] = useState<string[]>([]);
+  const [montosPorFactura, setMontosPorFactura] = useState<Record<string, number>>({});
   const [newFormaPago, setNewFormaPago] = useState<FormaPago>("TRANSFERENCIA");
   const [newObs, setNewObs] = useState("");
   const [newResponsable, setNewResponsable] = useState("");
