@@ -78,6 +78,7 @@ export default function ProgramacionPage() {
 
   const [newProveedorId, setNewProveedorId] = useState("");
   const [selectedFacturaIds, setSelectedFacturaIds] = useState<string[]>([]);
+  const [montosPorFactura, setMontosPorFactura] = useState<Record<string, number>>({});
   const [newFormaPago, setNewFormaPago] = useState<FormaPago>("TRANSFERENCIA");
   const [newObs, setNewObs] = useState("");
   const [newResponsable, setNewResponsable] = useState("");
@@ -100,24 +101,33 @@ export default function ProgramacionPage() {
     return facturasConSaldo.filter((f) => selectedFacturaIds.includes(f.id));
   }, [facturasConSaldo, selectedFacturaIds]);
 
+  const getMonto = (f: { id: string; saldoReal: number }) => {
+    if (f.saldoReal < 0) return f.saldoReal; // credits are fixed
+    return montosPorFactura[f.id] ?? f.saldoReal;
+  };
+
   const selectedFacturasTotal = useMemo(() => {
-    return selectedFacturas.reduce((sum, f) => sum + f.saldoReal, 0);
-  }, [selectedFacturas]);
+    return selectedFacturas.reduce((sum, f) => sum + getMonto(f), 0);
+  }, [selectedFacturas, montosPorFactura]);
 
   const selectedCreditos = useMemo(() => {
     return selectedFacturas.filter((f) => f.saldoReal < 0).reduce((sum, f) => sum + f.saldoReal, 0);
   }, [selectedFacturas]);
 
   const selectedSubtotal = useMemo(() => {
-    return selectedFacturas.filter((f) => f.saldoReal > 0).reduce((sum, f) => sum + f.saldoReal, 0);
-  }, [selectedFacturas]);
+    return selectedFacturas.filter((f) => f.saldoReal > 0).reduce((sum, f) => sum + getMonto(f), 0);
+  }, [selectedFacturas, montosPorFactura]);
 
   const hasCreditos = selectedCreditos < 0;
 
   const toggleFactura = (id: string) => {
-    setSelectedFacturaIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
+    setSelectedFacturaIds((prev) => {
+      if (prev.includes(id)) {
+        setMontosPorFactura((m) => { const n = { ...m }; delete n[id]; return n; });
+        return prev.filter((x) => x !== id);
+      }
+      return [...prev, id];
+    });
   };
 
   const handleAddLine = async () => {
@@ -130,10 +140,12 @@ export default function ProgramacionPage() {
         const f = facturasConSaldo.find((x) => x.id === fId);
         if (!f) continue;
         const saldo = f.saldoReal;
+        const monto = getMonto(f);
         if (saldo === 0) { toast.warning(`Factura ${f.numero_factura} sin saldo pendiente, omitida`); continue; }
+        if (saldo > 0 && (monto <= 0 || monto > saldo)) { toast.error(`Factura ${f.numero_factura}: monto inválido`); continue; }
         const existing = lineas.find((l) => l.numero_factura === f.numero_factura);
         if (existing) { toast.warning(`Factura ${f.numero_factura} ya programada, omitida`); continue; }
-        if (totalAprobado + saldo > limite) toast.warning(`${f.numero_factura}: monto excede el límite`);
+        if (totalAprobado + monto > limite) toast.warning(`${f.numero_factura}: monto excede el límite`);
 
         const diasVencidos = calcularDiasVencidos(f.fecha_vencimiento);
         await addLineaProgramacion.mutateAsync({
@@ -149,7 +161,7 @@ export default function ProgramacionPage() {
           banco_destino: selectedProveedor.banco,
           cuenta_destino: selectedProveedor.numero_cuenta,
           saldo_real_pendiente: saldo,
-          monto_a_pagar: saldo,
+          monto_a_pagar: monto,
           observaciones: newObs,
           responsable_pago: newResponsable || profile?.nombre || "",
           fecha_programada: newFechaProg,
@@ -158,7 +170,7 @@ export default function ProgramacionPage() {
       }
       toast.success(`${added} línea(s) agregada(s) a la programación`);
       setShowAddDialog(false);
-      setNewProveedorId(""); setSelectedFacturaIds([]); setNewObs("");
+      setNewProveedorId(""); setSelectedFacturaIds([]); setMontosPorFactura({}); setNewObs("");
     } catch (err: any) {
       toast.error(err.message || "Error al agregar línea");
     }
@@ -481,18 +493,37 @@ export default function ProgramacionPage() {
                     const isZero = f.saldoReal === 0;
                     const isCredit = f.saldoReal < 0;
                     return (
-                      <label key={f.id} className={`flex items-center gap-3 px-3 py-2 border-b last:border-b-0 ${isZero ? "opacity-50 cursor-not-allowed bg-gray-50" : "hover:bg-muted cursor-pointer"}`}>
-                        <Checkbox
-                          checked={selectedFacturaIds.includes(f.id)}
-                          onCheckedChange={() => toggleFactura(f.id)}
-                          disabled={isZero}
-                        />
-                        <span className="text-sm font-mono flex-1 flex items-center gap-2">
-                          {f.numero_factura}
-                          {isCredit && <Badge variant="secondary" className="bg-blue-100 text-blue-700 text-[10px]">CRÉDITO</Badge>}
+                      <div key={f.id} className={`flex items-center gap-2 px-3 py-2 border-b last:border-b-0 ${isZero ? "opacity-50 cursor-not-allowed bg-gray-50" : "hover:bg-muted"}`}>
+                        <label className="flex items-center gap-2 cursor-pointer min-w-0 flex-1">
+                          <Checkbox
+                            checked={selectedFacturaIds.includes(f.id)}
+                            onCheckedChange={() => toggleFactura(f.id)}
+                            disabled={isZero}
+                          />
+                          <span className="text-sm font-mono truncate flex items-center gap-1">
+                            {f.numero_factura}
+                            {isCredit && <Badge variant="secondary" className="bg-blue-100 text-blue-700 text-[10px]">CRÉDITO</Badge>}
+                          </span>
+                        </label>
+                        <span className={`text-xs tabular-nums whitespace-nowrap ${isCredit ? "text-blue-600" : "text-muted-foreground"}`}>
+                          Saldo: {formatUSD(f.saldoReal)}
                         </span>
-                        <span className={`text-sm tabular-nums font-medium ${isCredit ? "text-blue-600" : ""}`}>{formatUSD(f.saldoReal)}</span>
-                      </label>
+                        {selectedFacturaIds.includes(f.id) && !isCredit && !isZero && (
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0.01"
+                            max={f.saldoReal}
+                            className="w-28 h-7 text-xs tabular-nums text-right"
+                            value={montosPorFactura[f.id] ?? f.saldoReal}
+                            onChange={(e) => {
+                              const val = parseFloat(e.target.value);
+                              setMontosPorFactura((prev) => ({ ...prev, [f.id]: isNaN(val) ? 0 : val }));
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        )}
+                      </div>
                     );
                   })}
                 </div>
