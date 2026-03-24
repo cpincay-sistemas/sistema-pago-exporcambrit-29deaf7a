@@ -29,9 +29,10 @@ export function formatDate(dateStr: string): string {
 export function getCurrentISOWeek(): string {
   const now = new Date();
   const jan4 = new Date(now.getFullYear(), 0, 4);
-  const dayOfYear = Math.floor((now.getTime() - new Date(now.getFullYear(), 0, 1).getTime()) / 86400000) + 1;
-  const weekNum = Math.ceil((dayOfYear + jan4.getDay() - 1) / 7);
-  return `${now.getFullYear()}-W${String(weekNum).padStart(2, "0")}`;
+  const start = new Date(jan4);
+  start.setDate(jan4.getDate() - ((jan4.getDay() + 6) % 7));
+  const week = Math.floor((now.getTime() - start.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
+  return `${now.getFullYear()}-W${String(week).padStart(2, "0")}`;
 }
 
 export function validarRUC(ruc: string): boolean {
