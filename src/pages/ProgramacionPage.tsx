@@ -96,11 +96,23 @@ export default function ProgramacionPage() {
     }));
   }, [facturasProveedor, historico]);
 
-  const selectedFacturasTotal = useMemo(() => {
-    return facturasConSaldo
-      .filter((f) => selectedFacturaIds.includes(f.id))
-      .reduce((sum, f) => sum + f.saldoReal, 0);
+  const selectedFacturas = useMemo(() => {
+    return facturasConSaldo.filter((f) => selectedFacturaIds.includes(f.id));
   }, [facturasConSaldo, selectedFacturaIds]);
+
+  const selectedFacturasTotal = useMemo(() => {
+    return selectedFacturas.reduce((sum, f) => sum + f.saldoReal, 0);
+  }, [selectedFacturas]);
+
+  const selectedCreditos = useMemo(() => {
+    return selectedFacturas.filter((f) => f.saldoReal < 0).reduce((sum, f) => sum + f.saldoReal, 0);
+  }, [selectedFacturas]);
+
+  const selectedSubtotal = useMemo(() => {
+    return selectedFacturas.filter((f) => f.saldoReal > 0).reduce((sum, f) => sum + f.saldoReal, 0);
+  }, [selectedFacturas]);
+
+  const hasCreditos = selectedCreditos < 0;
 
   const toggleFactura = (id: string) => {
     setSelectedFacturaIds((prev) =>
