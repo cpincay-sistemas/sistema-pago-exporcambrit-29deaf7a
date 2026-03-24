@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Search, Download, Upload, ChevronLeft, ChevronRight } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
@@ -151,19 +152,31 @@ export default function BaseCxPPage() {
               </tr>
             </thead>
             <tbody>
-              {paginated.map((f) => (
-                <tr key={f.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors duration-150">
-                  <td className="px-4 py-3 font-medium max-w-[200px] truncate">{f.razon_social}</td>
-                  <td className="px-4 py-3 tabular-nums text-xs">{f.numero_factura}</td>
-                  <td className="px-4 py-3 max-w-[180px] truncate text-muted-foreground">{f.motivo}</td>
-                  <td className="px-4 py-3 tabular-nums">{formatDate(f.fecha_emision)}</td>
-                  <td className="px-4 py-3 tabular-nums">{formatDate(f.fecha_vencimiento)}</td>
-                  <td className="px-4 py-3 tabular-nums text-right font-semibold">{f.dias_vencidos}</td>
-                  <td className="px-4 py-3 tabular-nums text-right">{formatUSD(Number(f.saldo_total))}</td>
-                  <td className="px-4 py-3 tabular-nums text-right font-semibold">{formatUSD(getReal(f.numero_factura))}</td>
-                  <td className="px-4 py-3"><PrioridadBadge prioridad={f.prioridad} /></td>
-                </tr>
-              ))}
+              {paginated.map((f) => {
+                const saldo = Number(f.saldo_total);
+                const rowClass = saldo === 0
+                  ? "border-b last:border-0 bg-gray-100 text-gray-400"
+                  : saldo < 0
+                    ? "border-b last:border-0 bg-blue-50"
+                    : "border-b last:border-0 hover:bg-muted/30 transition-colors duration-150";
+                return (
+                  <tr key={f.id} className={rowClass}>
+                    <td className="px-4 py-3 font-medium max-w-[200px] truncate">{f.razon_social}</td>
+                    <td className="px-4 py-3 tabular-nums text-xs">{f.numero_factura}</td>
+                    <td className="px-4 py-3 max-w-[180px] truncate text-muted-foreground">{f.motivo}</td>
+                    <td className="px-4 py-3 tabular-nums">{formatDate(f.fecha_emision)}</td>
+                    <td className="px-4 py-3 tabular-nums">{formatDate(f.fecha_vencimiento)}</td>
+                    <td className="px-4 py-3 tabular-nums text-right font-semibold">{f.dias_vencidos}</td>
+                    <td className="px-4 py-3 tabular-nums text-right">
+                      <span className="mr-2">{formatUSD(saldo)}</span>
+                      {saldo === 0 && <Badge variant="secondary" className="bg-gray-300 text-gray-700 text-[10px]">PAGADA</Badge>}
+                      {saldo < 0 && <Badge variant="secondary" className="bg-blue-100 text-blue-700 text-[10px]">CRÉDITO A FAVOR</Badge>}
+                    </td>
+                    <td className="px-4 py-3 tabular-nums text-right font-semibold">{formatUSD(getReal(f.numero_factura))}</td>
+                    <td className="px-4 py-3"><PrioridadBadge prioridad={f.prioridad} /></td>
+                  </tr>
+                );
+              })}
               {paginated.length === 0 && (
                 <tr><td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">No hay facturas registradas</td></tr>
               )}

@@ -96,11 +96,23 @@ export default function ProgramacionPage() {
     }));
   }, [facturasProveedor, historico]);
 
-  const selectedFacturasTotal = useMemo(() => {
-    return facturasConSaldo
-      .filter((f) => selectedFacturaIds.includes(f.id))
-      .reduce((sum, f) => sum + f.saldoReal, 0);
+  const selectedFacturas = useMemo(() => {
+    return facturasConSaldo.filter((f) => selectedFacturaIds.includes(f.id));
   }, [facturasConSaldo, selectedFacturaIds]);
+
+  const selectedFacturasTotal = useMemo(() => {
+    return selectedFacturas.reduce((sum, f) => sum + f.saldoReal, 0);
+  }, [selectedFacturas]);
+
+  const selectedCreditos = useMemo(() => {
+    return selectedFacturas.filter((f) => f.saldoReal < 0).reduce((sum, f) => sum + f.saldoReal, 0);
+  }, [selectedFacturas]);
+
+  const selectedSubtotal = useMemo(() => {
+    return selectedFacturas.filter((f) => f.saldoReal > 0).reduce((sum, f) => sum + f.saldoReal, 0);
+  }, [selectedFacturas]);
+
+  const hasCreditos = selectedCreditos < 0;
 
   const toggleFactura = (id: string) => {
     setSelectedFacturaIds((prev) =>
@@ -118,7 +130,7 @@ export default function ProgramacionPage() {
         const f = facturasConSaldo.find((x) => x.id === fId);
         if (!f) continue;
         const saldo = f.saldoReal;
-        if (saldo <= 0) { toast.warning(`Factura ${f.numero_factura} sin saldo pendiente, omitida`); continue; }
+        if (saldo === 0) { toast.warning(`Factura ${f.numero_factura} sin saldo pendiente, omitida`); continue; }
         const existing = lineas.find((l) => l.numero_factura === f.numero_factura);
         if (existing) { toast.warning(`Factura ${f.numero_factura} ya programada, omitida`); continue; }
         if (totalAprobado + saldo > limite) toast.warning(`${f.numero_factura}: monto excede el límite`);
@@ -465,22 +477,52 @@ export default function ProgramacionPage() {
                 </p>
               ) : (
                 <div className="border rounded-md max-h-48 overflow-y-auto">
-                  {facturasConSaldo.map((f) => (
-                    <label key={f.id} className="flex items-center gap-3 px-3 py-2 hover:bg-muted cursor-pointer border-b last:border-b-0">
-                      <Checkbox
-                        checked={selectedFacturaIds.includes(f.id)}
-                        onCheckedChange={() => toggleFactura(f.id)}
-                      />
-                      <span className="text-sm font-mono flex-1">{f.numero_factura}</span>
-                      <span className="text-sm tabular-nums font-medium">{formatUSD(f.saldoReal)}</span>
-                    </label>
-                  ))}
+              {facturasConSaldo.map((f) => {
+                    const isZero = f.saldoReal === 0;
+                    const isCredit = f.saldoReal < 0;
+                    return (
+                      <label key={f.id} className={`flex items-center gap-3 px-3 py-2 border-b last:border-b-0 ${isZero ? "opacity-50 cursor-not-allowed bg-gray-50" : "hover:bg-muted cursor-pointer"}`}>
+                        <Checkbox
+                          checked={selectedFacturaIds.includes(f.id)}
+                          onCheckedChange={() => toggleFactura(f.id)}
+                          disabled={isZero}
+                        />
+                        <span className="text-sm font-mono flex-1 flex items-center gap-2">
+                          {f.numero_factura}
+                          {isCredit && <Badge variant="secondary" className="bg-blue-100 text-blue-700 text-[10px]">CRÉDITO</Badge>}
+                        </span>
+                        <span className={`text-sm tabular-nums font-medium ${isCredit ? "text-blue-600" : ""}`}>{formatUSD(f.saldoReal)}</span>
+                      </label>
+                    );
+                  })}
                 </div>
               )}
               {selectedFacturaIds.length > 0 && (
-                <div className="mt-2 p-2 bg-muted rounded-md flex justify-between items-center text-sm">
-                  <span className="text-muted-foreground">{selectedFacturaIds.length} factura(s) seleccionada(s)</span>
-                  <span className="font-semibold tabular-nums">Total: {formatUSD(selectedFacturasTotal)}</span>
+                <div className="mt-2 p-2 bg-muted rounded-md text-sm space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">{selectedFacturaIds.length} factura(s) seleccionada(s)</span>
+                  </div>
+                  {hasCreditos ? (
+                    <>
+                      <div className="flex justify-between tabular-nums">
+                        <span className="text-muted-foreground">Subtotal facturas:</span>
+                        <span>{formatUSD(selectedSubtotal)}</span>
+                      </div>
+                      <div className="flex justify-between tabular-nums text-blue-600">
+                        <span>Créditos aplicados:</span>
+                        <span>{formatUSD(selectedCreditos)}</span>
+                      </div>
+                      <div className="flex justify-between tabular-nums font-semibold border-t pt-1">
+                        <span>Total neto a pagar:</span>
+                        <span>{formatUSD(selectedFacturasTotal)}</span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex justify-between tabular-nums font-semibold">
+                      <span>Total:</span>
+                      <span>{formatUSD(selectedFacturasTotal)}</span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
