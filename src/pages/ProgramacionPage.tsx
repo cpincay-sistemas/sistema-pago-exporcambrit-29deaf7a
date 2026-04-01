@@ -303,7 +303,7 @@ export default function ProgramacionPage() {
         tableHtml += `<th style="text-align:${alignRight[i] ? "right" : "left"};padding:8px 10px;background:#f3f4f6;border-bottom:2px solid #d1d5db;font-weight:600;">${c}</th>`;
       });
       tableHtml += `</tr></thead><tbody>`;
-      lineas.forEach((l, idx) => {
+      exportLineas.forEach((l, idx) => {
         const bg = idx % 2 === 0 ? "#fff" : "#f9fafb";
         tableHtml += `<tr style="background:${bg};">
           <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;"><div style="font-weight:500;">${l.razon_social}</div><div style="font-size:11px;color:#888;">${l.codigo_proveedor}</div></td>
