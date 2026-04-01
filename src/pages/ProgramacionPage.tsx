@@ -428,9 +428,13 @@ export default function ProgramacionPage() {
         </div>
       ) : (
         <>
-          {canApprove() && (
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" size="sm" onClick={handleApproveAll}><CheckCircle2 size={16} /> Aprobar Todas</Button>
+          <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => setSortAZ(!sortAZ)}>
+                {sortAZ ? "↩ Orden original" : "↕ Ordenar A-Z"}
+              </Button>
+              {canApprove() && (
+                <Button variant="outline" size="sm" onClick={handleApproveAll}><CheckCircle2 size={16} /> Aprobar Todas</Button>
+              )}
             </div>
           )}
           <div className="bg-card rounded-lg card-shadow overflow-hidden">
