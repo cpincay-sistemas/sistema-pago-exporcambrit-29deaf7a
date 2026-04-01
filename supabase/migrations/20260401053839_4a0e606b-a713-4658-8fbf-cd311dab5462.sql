@@ -1,0 +1,1 @@
+ALTER TABLE public.pagos_ejecutados ADD COLUMN semana text NOT NULL DEFAULT '';
