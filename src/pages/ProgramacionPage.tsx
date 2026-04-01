@@ -276,7 +276,8 @@ export default function ProgramacionPage() {
       // Group by provider for footer
       const byProv: Record<string, { total: number; count: number }> = {};
       let grandTotal = 0;
-      lineas.forEach((l) => {
+      const exportLineas = sortAZ ? sortedLineas : lineas;
+      exportLineas.forEach((l) => {
         const m = Number(l.monto_a_pagar);
         grandTotal += m;
         if (!byProv[l.razon_social]) byProv[l.razon_social] = { total: 0, count: 0 };
