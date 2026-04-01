@@ -19,6 +19,7 @@ import { Plus, Trash2, CheckCircle2, XCircle, Download, Undo2 } from "lucide-rea
 import type { FormaPago, EstadoAprobacion } from "@/types";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+import * as XLSX from "xlsx";
 
 const FORMAS_PAGO: FormaPago[] = ["TRANSFERENCIA", "CHEQUE", "EFECTIVO", "ACH"];
 
@@ -222,9 +223,51 @@ export default function ProgramacionPage() {
 
   const limiteUsado = (totalAprobado / limite) * 100;
 
-  
+  const [sortAZ, setSortAZ] = useState(false);
 
-  const handleExportProgramacion = async (format: "pdf" | "jpg" | "png") => {
+  const sortedLineas = useMemo(() => {
+    if (!sortAZ) return lineas;
+    return [...lineas].sort((a, b) => a.razon_social.localeCompare(b.razon_social));
+  }, [lineas, sortAZ]);
+
+  const handleExportExcel = () => {
+    if (lineas.length === 0) { toast.error("No hay líneas para exportar"); return; }
+    const rows = (sortAZ ? sortedLineas : lineas).map((l) => ({
+      "Proveedor": l.razon_social,
+      "Factura": l.numero_factura,
+      "Vencimiento": formatDate(l.fecha_vencimiento),
+      "Prioridad": l.prioridad,
+      "Estado": l.estado_aprobacion,
+      "Forma Pago": l.forma_pago,
+      "Saldo Real": Number(l.saldo_real_pendiente),
+      "Monto a Pagar": Number(l.monto_a_pagar),
+      "Responsable": l.responsable_pago,
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    // Summary sheet
+    const byProv: Record<string, { total: number; count: number }> = {};
+    lineas.forEach((l) => {
+      const m = Number(l.monto_a_pagar);
+      if (!byProv[l.razon_social]) byProv[l.razon_social] = { total: 0, count: 0 };
+      byProv[l.razon_social].total += m;
+      byProv[l.razon_social].count += 1;
+    });
+    const summaryRows = Object.entries(byProv).sort((a, b) => b[1].total - a[1].total).map(([name, { total, count }], i) => ({
+      "N°": i + 1, "Proveedor": name, "Facturas": count, "Monto Total": total,
+    }));
+    const grandTotal = summaryRows.reduce((s, r) => s + r["Monto Total"], 0);
+    const totalFacturas = summaryRows.reduce((s, r) => s + r["Facturas"], 0);
+    summaryRows.push({ "N°": 0, "Proveedor": "TOTAL GENERAL", "Facturas": totalFacturas, "Monto Total": grandTotal } as any);
+    const ws2 = XLSX.utils.json_to_sheet(summaryRows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Programación");
+    XLSX.utils.book_append_sheet(wb, ws2, "Resumen");
+    XLSX.writeFile(wb, `programacion_${selectedSemana}.xlsx`);
+    toast.success("Exportado como Excel");
+  };
+
+  const handleExportProgramacion = async (format: "pdf" | "jpg" | "xlsx") => {
+    if (format === "xlsx") { handleExportExcel(); return; }
     if (lineas.length === 0) { toast.error("No hay líneas para exportar"); return; }
     try {
       const today = new Date();
@@ -233,7 +276,8 @@ export default function ProgramacionPage() {
       // Group by provider for footer
       const byProv: Record<string, { total: number; count: number }> = {};
       let grandTotal = 0;
-      lineas.forEach((l) => {
+      const exportLineas = sortAZ ? sortedLineas : lineas;
+      exportLineas.forEach((l) => {
         const m = Number(l.monto_a_pagar);
         grandTotal += m;
         if (!byProv[l.razon_social]) byProv[l.razon_social] = { total: 0, count: 0 };
@@ -259,7 +303,7 @@ export default function ProgramacionPage() {
         tableHtml += `<th style="text-align:${alignRight[i] ? "right" : "left"};padding:8px 10px;background:#f3f4f6;border-bottom:2px solid #d1d5db;font-weight:600;">${c}</th>`;
       });
       tableHtml += `</tr></thead><tbody>`;
-      lineas.forEach((l, idx) => {
+      exportLineas.forEach((l, idx) => {
         const bg = idx % 2 === 0 ? "#fff" : "#f9fafb";
         tableHtml += `<tr style="background:${bg};">
           <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;"><div style="font-weight:500;">${l.razon_social}</div><div style="font-size:11px;color:#888;">${l.codigo_proveedor}</div></td>
@@ -322,10 +366,10 @@ export default function ProgramacionPage() {
       document.body.removeChild(container);
 
       const fileName = `programacion_${selectedSemana}`;
-      if (format === "png" || format === "jpg") {
+      if (format === "jpg") {
         const link = document.createElement("a");
         link.download = `${fileName}.${format}`;
-        link.href = canvas.toDataURL(`image/${format === "jpg" ? "jpeg" : "png"}`, 0.95);
+        link.href = canvas.toDataURL("image/jpeg", 0.95);
         link.click();
       } else {
         const imgData = canvas.toDataURL("image/png");
@@ -348,14 +392,14 @@ export default function ProgramacionPage() {
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <Input type="week" value={selectedSemana} onChange={(e) => setSelectedSemana(e.target.value || semanaActual)} className="w-40" />
-          <Select onValueChange={(v) => handleExportProgramacion(v as "pdf" | "jpg" | "png")}>
+          <Select onValueChange={(v) => handleExportProgramacion(v as "pdf" | "jpg" | "xlsx")}>
             <SelectTrigger className="w-36">
               <div className="flex items-center gap-1.5"><Download size={15} /> Exportar</div>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="pdf">PDF</SelectItem>
               <SelectItem value="jpg">JPG</SelectItem>
-              <SelectItem value="png">PNG</SelectItem>
+              <SelectItem value="xlsx">Excel</SelectItem>
             </SelectContent>
           </Select>
           {canWrite() && (
@@ -385,11 +429,14 @@ export default function ProgramacionPage() {
         </div>
       ) : (
         <>
-          {canApprove() && (
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" size="sm" onClick={handleApproveAll}><CheckCircle2 size={16} /> Aprobar Todas</Button>
+          <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => setSortAZ(!sortAZ)}>
+                {sortAZ ? "↩ Orden original" : "↕ Ordenar A-Z"}
+              </Button>
+              {canApprove() && (
+                <Button variant="outline" size="sm" onClick={handleApproveAll}><CheckCircle2 size={16} /> Aprobar Todas</Button>
+              )}
             </div>
-          )}
           <div className="bg-card rounded-lg card-shadow overflow-hidden">
             <Table>
               <TableHeader>
@@ -407,7 +454,7 @@ export default function ProgramacionPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {lineas.map((l) => (
+                {sortedLineas.map((l) => (
                   <TableRow key={l.id}>
                     <TableCell>
                       <div className="font-medium text-sm">{l.razon_social}</div>

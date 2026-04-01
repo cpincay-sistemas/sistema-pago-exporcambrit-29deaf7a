@@ -241,6 +241,7 @@ export type Database = {
           razon_social: string
           responsable: string
           saldo_pendiente: number
+          semana: string
         }
         Insert: {
           aprobado_por?: string
@@ -260,6 +261,7 @@ export type Database = {
           razon_social: string
           responsable?: string
           saldo_pendiente?: number
+          semana?: string
         }
         Update: {
           aprobado_por?: string
@@ -279,6 +281,7 @@ export type Database = {
           razon_social?: string
           responsable?: string
           saldo_pendiente?: number
+          semana?: string
         }
         Relationships: []
       }
