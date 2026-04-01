@@ -391,14 +391,14 @@ export default function ProgramacionPage() {
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <Input type="week" value={selectedSemana} onChange={(e) => setSelectedSemana(e.target.value || semanaActual)} className="w-40" />
-          <Select onValueChange={(v) => handleExportProgramacion(v as "pdf" | "jpg" | "png")}>
+          <Select onValueChange={(v) => handleExportProgramacion(v as "pdf" | "jpg" | "xlsx")}>
             <SelectTrigger className="w-36">
               <div className="flex items-center gap-1.5"><Download size={15} /> Exportar</div>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="pdf">PDF</SelectItem>
               <SelectItem value="jpg">JPG</SelectItem>
-              <SelectItem value="png">PNG</SelectItem>
+              <SelectItem value="xlsx">Excel</SelectItem>
             </SelectContent>
           </Select>
           {canWrite() && (
