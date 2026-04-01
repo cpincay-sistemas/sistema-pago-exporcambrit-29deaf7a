@@ -19,6 +19,7 @@ import { Plus, Trash2, CheckCircle2, XCircle, Download, Undo2 } from "lucide-rea
 import type { FormaPago, EstadoAprobacion } from "@/types";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+import * as XLSX from "xlsx";
 
 const FORMAS_PAGO: FormaPago[] = ["TRANSFERENCIA", "CHEQUE", "EFECTIVO", "ACH"];
 
