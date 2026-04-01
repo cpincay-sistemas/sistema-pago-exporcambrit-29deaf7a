@@ -365,10 +365,10 @@ export default function ProgramacionPage() {
       document.body.removeChild(container);
 
       const fileName = `programacion_${selectedSemana}`;
-      if (format === "png" || format === "jpg") {
+      if (format === "jpg") {
         const link = document.createElement("a");
         link.download = `${fileName}.${format}`;
-        link.href = canvas.toDataURL(`image/${format === "jpg" ? "jpeg" : "png"}`, 0.95);
+        link.href = canvas.toDataURL("image/jpeg", 0.95);
         link.click();
       } else {
         const imgData = canvas.toDataURL("image/png");
