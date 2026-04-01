@@ -454,7 +454,7 @@ export default function ProgramacionPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {lineas.map((l) => (
+                {sortedLineas.map((l) => (
                   <TableRow key={l.id}>
                     <TableCell>
                       <div className="font-medium text-sm">{l.razon_social}</div>
