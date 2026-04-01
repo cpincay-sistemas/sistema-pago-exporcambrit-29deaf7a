@@ -5,11 +5,12 @@ import { PrioridadBadge } from "@/components/PrioridadBadge";
 import { formatUSD, formatDate, getCurrentISOWeek, calcularDiasVencidos, calcularPrioridad } from "@/lib/business-rules";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, CartesianGrid } from "recharts";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import type { Prioridad } from "@/types";
 
 const CHART_COLORS = ["hsl(0,100%,38%)", "hsl(27,92%,47%)", "hsl(45,100%,37%)", "hsl(100,41%,24%)"];
 
-type PeriodFilter = "week" | "month" | "year" | "all";
+type PeriodFilter = "week" | "month" | "year" | "all" | "specific";
 
 function getISOWeekBounds(): [Date, Date] {
   const now = new Date();
@@ -33,6 +34,21 @@ function getYearBounds(): [Date, Date] {
   return [new Date(now.getFullYear(), 0, 1), new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999)];
 }
 
+function getSpecificWeekBounds(weekStr: string): [Date, Date] | null {
+  const match = weekStr.match(/^(\d{4})-W(\d{2})$/);
+  if (!match) return null;
+  const year = parseInt(match[1]);
+  const week = parseInt(match[2]);
+  const jan4 = new Date(year, 0, 4);
+  const monday = new Date(jan4);
+  monday.setDate(jan4.getDate() - ((jan4.getDay() + 6) % 7) + (week - 1) * 7);
+  monday.setHours(0, 0, 0, 0);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  sunday.setHours(23, 59, 59, 999);
+  return [monday, sunday];
+}
+
 function inRange(dateStr: string, bounds: [Date, Date] | null): boolean {
   if (!bounds) return true;
   const d = new Date(dateStr + "T00:00:00");
@@ -44,15 +60,17 @@ export default function DashboardPage() {
   const { data: historico = [] } = useHistorico();
   const currentWeek = getCurrentISOWeek();
   const [period, setPeriod] = useState<PeriodFilter>("month");
+  const [specificWeek, setSpecificWeek] = useState(currentWeek);
 
   const bounds = useMemo((): [Date, Date] | null => {
     if (period === "week") return getISOWeekBounds();
     if (period === "month") return getMonthBounds();
     if (period === "year") return getYearBounds();
+    if (period === "specific") return getSpecificWeekBounds(specificWeek);
     return null;
-  }, [period]);
+  }, [period, specificWeek]);
 
-  const periodLabel = period === "week" ? "Esta semana" : period === "month" ? "Este mes" : period === "year" ? "Este año" : "Todo";
+  const periodLabel = period === "week" ? "Esta semana" : period === "month" ? "Este mes" : period === "year" ? "Este año" : period === "specific" ? `Semana ${specificWeek}` : "Todo";
 
   const getReal = (nf: string) => {
     const f = facturas.find((x) => x.numero_factura === nf);
@@ -105,17 +123,28 @@ export default function DashboardPage() {
           <h2 className="text-xl font-semibold text-teal">Dashboard Ejecutivo</h2>
           <p className="text-sm text-muted-foreground">Semana {currentWeek} — Visión general de cuentas por pagar</p>
         </div>
-        <Select value={period} onValueChange={(v) => setPeriod(v as PeriodFilter)}>
-          <SelectTrigger className="w-40">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="week">Esta semana</SelectItem>
-            <SelectItem value="month">Este mes</SelectItem>
-            <SelectItem value="year">Este año</SelectItem>
-            <SelectItem value="all">Todo</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-2">
+          <Select value={period} onValueChange={(v) => setPeriod(v as PeriodFilter)}>
+            <SelectTrigger className="w-44">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="week">Esta semana</SelectItem>
+              <SelectItem value="month">Este mes</SelectItem>
+              <SelectItem value="year">Este año</SelectItem>
+              <SelectItem value="all">Todo</SelectItem>
+              <SelectItem value="specific">Semana específica</SelectItem>
+            </SelectContent>
+          </Select>
+          {period === "specific" && (
+            <Input
+              type="week"
+              value={specificWeek}
+              onChange={(e) => setSpecificWeek(e.target.value || currentWeek)}
+              className="w-44"
+            />
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
