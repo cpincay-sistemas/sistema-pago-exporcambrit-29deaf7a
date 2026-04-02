@@ -113,7 +113,7 @@ export default function ProgramacionPage() {
   const facturasConSaldo = useMemo(() => {
     return facturasDisponibles.map((f) => ({
       ...f,
-      saldoReal: getSaldoRealPendiente(f.numero_factura),
+      saldoReal: getSaldoRealPendiente(f.numero_factura, f.codigo_proveedor),
     }));
   }, [facturasDisponibles, historico]);
 

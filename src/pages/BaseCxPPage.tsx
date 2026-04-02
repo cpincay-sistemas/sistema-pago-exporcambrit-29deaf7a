@@ -25,10 +25,10 @@ export default function BaseCxPPage() {
   const [page, setPage] = useState(0);
   const [importOpen, setImportOpen] = useState(false);
 
-  const getReal = (nf: string) => {
-    const f = facturas.find((x) => x.numero_factura === nf);
+  const getReal = (nf: string, codigoProv: string) => {
+    const f = facturas.find((x) => x.numero_factura === nf && x.codigo_proveedor === codigoProv);
     if (!f) return 0;
-    const abonado = historico.filter((h) => h.numero_factura === nf).reduce((s, h) => s + Number(h.monto_pagado), 0);
+    const abonado = historico.filter((h) => h.numero_factura === nf && h.codigo_proveedor === codigoProv).reduce((s, h) => s + Number(h.monto_pagado), 0);
     return Number(f.saldo_total) - abonado;
   };
 
