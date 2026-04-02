@@ -119,6 +119,17 @@ export function useLineasProgramacion(semanaId?: string) {
   });
 }
 
+export function useAllLineasProgramacion() {
+  return useQuery({
+    queryKey: ["lineas_programacion_all"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("lineas_programacion").select("codigo_proveedor, numero_factura, semana_id").order("created_at");
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
 export function useAddLineaProgramacion() {
   const qc = useQueryClient();
   return useMutation({

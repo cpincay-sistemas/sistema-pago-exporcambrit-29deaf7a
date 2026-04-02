@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from "react";
 import {
   useProveedores, useFacturas, useHistorico, useProgramaciones,
-  useLineasProgramacion, useAddProgramacion, useUpdateProgramacion,
+  useLineasProgramacion, useAllLineasProgramacion, useAddProgramacion, useUpdateProgramacion,
   useAddLineaProgramacion, useUpdateLineaProgramacion, useDeleteLineaProgramacion,
 } from "@/hooks/useSupabaseData";
 import { useAuth } from "@/hooks/useAuth";
@@ -19,6 +19,7 @@ import { Plus, Trash2, CheckCircle2, XCircle, Download, Undo2 } from "lucide-rea
 import type { FormaPago, EstadoAprobacion } from "@/types";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 
 const FORMAS_PAGO: FormaPago[] = ["TRANSFERENCIA", "CHEQUE", "EFECTIVO", "ACH"];
@@ -35,6 +36,7 @@ export default function ProgramacionPage() {
   const { data: proveedores = [] } = useProveedores();
   const { data: facturas = [] } = useFacturas();
   const { data: historico = [] } = useHistorico();
+  const { data: allLineas = [] } = useAllLineasProgramacion();
   const { data: programaciones = [] } = useProgramaciones();
   const { canWrite, canApprove, profile } = useAuth();
 
@@ -91,12 +93,29 @@ export default function ProgramacionPage() {
     return facturas.filter((f) => f.codigo_proveedor === selectedProveedor.codigo);
   }, [facturas, selectedProveedor]);
 
+  // FIX 1: Exclude invoices already in programacion (any week) or historico
+  const facturasDisponibles = useMemo(() => {
+    if (!selectedProveedor) return [];
+    // Invoices already programmed in ANY week
+    const programmedKeys = new Set(
+      allLineas.map((l) => `${l.codigo_proveedor}|${l.numero_factura}`)
+    );
+    // Invoices already paid (in historico)
+    const historicKeys = new Set(
+      historico.map((h) => `${h.codigo_proveedor}|${h.numero_factura}`)
+    );
+    return facturasProveedor.filter((f) => {
+      const key = `${f.codigo_proveedor}|${f.numero_factura}`;
+      return !programmedKeys.has(key) && !historicKeys.has(key);
+    });
+  }, [facturasProveedor, allLineas, historico, selectedProveedor]);
+
   const facturasConSaldo = useMemo(() => {
-    return facturasProveedor.map((f) => ({
+    return facturasDisponibles.map((f) => ({
       ...f,
       saldoReal: getSaldoRealPendiente(f.numero_factura),
     }));
-  }, [facturasProveedor, historico]);
+  }, [facturasDisponibles, historico]);
 
   const selectedFacturas = useMemo(() => {
     return facturasConSaldo.filter((f) => selectedFacturaIds.includes(f.id));
@@ -272,11 +291,11 @@ export default function ProgramacionPage() {
     try {
       const today = new Date();
       const dateStr = `${String(today.getDate()).padStart(2, "0")}/${String(today.getMonth() + 1).padStart(2, "0")}/${today.getFullYear()}`;
+      const exportLineas = sortAZ ? sortedLineas : lineas;
 
-      // Group by provider for footer
+      // Group by provider for summary
       const byProv: Record<string, { total: number; count: number }> = {};
       let grandTotal = 0;
-      const exportLineas = sortAZ ? sortedLineas : lineas;
       exportLineas.forEach((l) => {
         const m = Number(l.monto_a_pagar);
         grandTotal += m;
@@ -285,97 +304,152 @@ export default function ProgramacionPage() {
         byProv[l.razon_social].count += 1;
       });
 
-      // Build off-screen div
-      const container = document.createElement("div");
-      container.style.cssText = "position:absolute;left:-9999px;top:0;width:1200px;background:#fff;padding:32px;font-family:system-ui,sans-serif;color:#1a1a1a;";
+      if (format === "pdf") {
+        // FIX 2: jsPDF autoTable paginated A4
+        const doc = new jsPDF({ orientation: "landscape", format: "a4" });
+        const pageWidth = doc.internal.pageSize.getWidth();
 
-      // Header
-      const header = document.createElement("div");
-      header.style.cssText = "margin-bottom:20px;border-bottom:2px solid #0d9488;padding-bottom:12px;";
-      header.innerHTML = `<div style="font-size:20px;font-weight:700;color:#0d9488;">EXPORCAMBRIT</div><div style="font-size:14px;color:#555;margin-top:4px;">Programación ${selectedSemana} — ${dateStr}</div>`;
-      container.appendChild(header);
+        // Header
+        doc.setFontSize(16);
+        doc.setTextColor(30, 58, 95);
+        doc.text("EXPORCAMBRIT", 14, 18);
+        doc.setFontSize(11);
+        doc.setTextColor(100);
+        doc.text(`Programación ${selectedSemana} — ${dateStr}`, 14, 25);
 
-      // Table
-      const cols = ["Proveedor", "Factura", "Vencimiento", "Prioridad", "Estado", "Forma Pago", "Saldo Real", "Monto a Pagar", "Responsable"];
-      const alignRight = [false, false, false, false, false, false, true, true, false];
-      let tableHtml = `<table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr>`;
-      cols.forEach((c, i) => {
-        tableHtml += `<th style="text-align:${alignRight[i] ? "right" : "left"};padding:8px 10px;background:#f3f4f6;border-bottom:2px solid #d1d5db;font-weight:600;">${c}</th>`;
-      });
-      tableHtml += `</tr></thead><tbody>`;
-      exportLineas.forEach((l, idx) => {
-        const bg = idx % 2 === 0 ? "#fff" : "#f9fafb";
-        tableHtml += `<tr style="background:${bg};">
-          <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;"><div style="font-weight:500;">${l.razon_social}</div><div style="font-size:11px;color:#888;">${l.codigo_proveedor}</div></td>
-          <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;font-family:monospace;">${l.numero_factura}</td>
-          <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;">${formatDate(l.fecha_vencimiento)}<br/><span style="font-size:11px;color:#888;">${l.dias_vencidos}d vencidos</span></td>
-          <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;">${l.prioridad}</td>
-          <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;">${l.estado_aprobacion}</td>
-          <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;">${l.forma_pago}</td>
-          <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;text-align:right;font-variant-numeric:tabular-nums;">${formatUSD(Number(l.saldo_real_pendiente))}</td>
-          <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:600;font-variant-numeric:tabular-nums;">${formatUSD(Number(l.monto_a_pagar))}</td>
-          <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;">${l.responsable_pago}</td>
+        // Main table
+        autoTable(doc, {
+          startY: 32,
+          head: [["Proveedor", "Factura", "Vencimiento", "Prioridad", "Estado", "Forma Pago", "Saldo Real", "Monto a Pagar", "Responsable"]],
+          body: exportLineas.map((l) => [
+            l.razon_social,
+            l.numero_factura,
+            formatDate(l.fecha_vencimiento),
+            l.prioridad,
+            l.estado_aprobacion,
+            l.forma_pago,
+            formatUSD(Number(l.saldo_real_pendiente)),
+            formatUSD(Number(l.monto_a_pagar)),
+            l.responsable_pago,
+          ]),
+          headStyles: { fillColor: [30, 58, 95], fontSize: 8 },
+          bodyStyles: { fontSize: 7.5 },
+          alternateRowStyles: { fillColor: [245, 245, 245] },
+          styles: { cellPadding: 3 },
+          didDrawPage: (data: any) => {
+            // Page number footer
+            doc.setFontSize(8);
+            doc.setTextColor(150);
+            doc.text(`Página ${doc.getCurrentPageInfo().pageNumber}`, pageWidth - 30, doc.internal.pageSize.getHeight() - 10);
+          },
+        });
+
+        // Summary table
+        const sortedProvs = Object.entries(byProv).sort((a, b) => b[1].total - a[1].total);
+        const totalFacturas = sortedProvs.reduce((s, [, v]) => s + v.count, 0);
+
+        const summaryBody = sortedProvs.map(([name, { count, total }], i) => [
+          String(i + 1), name, String(count), formatUSD(total),
+        ]);
+        summaryBody.push(["", "TOTAL GENERAL", String(totalFacturas), formatUSD(grandTotal)]);
+
+        const finalY = (doc as any).lastAutoTable?.finalY || 40;
+        // Add new page if not enough space
+        if (finalY > doc.internal.pageSize.getHeight() - 60) {
+          doc.addPage();
+          autoTable(doc, { startY: 20, head: [["N°", "Proveedor", "Facturas", "Monto Total"]], body: summaryBody, headStyles: { fillColor: [30, 58, 95], fontSize: 8 }, bodyStyles: { fontSize: 7.5 }, didParseCell: (data: any) => { if (data.section === "body" && data.row.index === summaryBody.length - 1) { data.cell.styles.fillColor = [30, 58, 95]; data.cell.styles.textColor = [255, 255, 255]; data.cell.styles.fontStyle = "bold"; } }, didDrawPage: (data: any) => { doc.setFontSize(8); doc.setTextColor(150); doc.text(`Página ${doc.getCurrentPageInfo().pageNumber}`, pageWidth - 30, doc.internal.pageSize.getHeight() - 10); }, });
+        } else {
+          autoTable(doc, { startY: finalY + 10, head: [["N°", "Proveedor", "Facturas", "Monto Total"]], body: summaryBody, headStyles: { fillColor: [30, 58, 95], fontSize: 8 }, bodyStyles: { fontSize: 7.5 }, didParseCell: (data: any) => { if (data.section === "body" && data.row.index === summaryBody.length - 1) { data.cell.styles.fillColor = [30, 58, 95]; data.cell.styles.textColor = [255, 255, 255]; data.cell.styles.fontStyle = "bold"; } }, didDrawPage: (data: any) => { doc.setFontSize(8); doc.setTextColor(150); doc.text(`Página ${doc.getCurrentPageInfo().pageNumber}`, pageWidth - 30, doc.internal.pageSize.getHeight() - 10); }, });
+        }
+
+        const now = new Date();
+        const timestamp = `${now.getDate().toString().padStart(2, "0")}/${(now.getMonth() + 1).toString().padStart(2, "0")}/${now.getFullYear()} ${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
+        const lastPage = doc.getNumberOfPages();
+        doc.setPage(lastPage);
+        doc.setFontSize(7);
+        doc.setTextColor(150);
+        doc.text(`Generado por EXPORCAMBRIT — ${timestamp}`, 14, doc.internal.pageSize.getHeight() - 10);
+
+        doc.save(`programacion_${selectedSemana}.pdf`);
+      } else {
+        // JPG export using html2canvas
+        const container = document.createElement("div");
+        container.style.cssText = "position:absolute;left:-9999px;top:0;width:1200px;background:#fff;padding:32px;font-family:system-ui,sans-serif;color:#1a1a1a;";
+
+        const header = document.createElement("div");
+        header.style.cssText = "margin-bottom:20px;border-bottom:2px solid #0d9488;padding-bottom:12px;";
+        header.innerHTML = `<div style="font-size:20px;font-weight:700;color:#0d9488;">EXPORCAMBRIT</div><div style="font-size:14px;color:#555;margin-top:4px;">Programación ${selectedSemana} — ${dateStr}</div>`;
+        container.appendChild(header);
+
+        const cols = ["Proveedor", "Factura", "Vencimiento", "Prioridad", "Estado", "Forma Pago", "Saldo Real", "Monto a Pagar", "Responsable"];
+        const alignRight = [false, false, false, false, false, false, true, true, false];
+        let tableHtml = `<table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr>`;
+        cols.forEach((c, i) => {
+          tableHtml += `<th style="text-align:${alignRight[i] ? "right" : "left"};padding:8px 10px;background:#f3f4f6;border-bottom:2px solid #d1d5db;font-weight:600;">${c}</th>`;
+        });
+        tableHtml += `</tr></thead><tbody>`;
+        exportLineas.forEach((l, idx) => {
+          const bg = idx % 2 === 0 ? "#fff" : "#f9fafb";
+          tableHtml += `<tr style="background:${bg};">
+            <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;"><div style="font-weight:500;">${l.razon_social}</div><div style="font-size:11px;color:#888;">${l.codigo_proveedor}</div></td>
+            <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;font-family:monospace;">${l.numero_factura}</td>
+            <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;">${formatDate(l.fecha_vencimiento)}<br/><span style="font-size:11px;color:#888;">${l.dias_vencidos}d vencidos</span></td>
+            <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;">${l.prioridad}</td>
+            <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;">${l.estado_aprobacion}</td>
+            <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;">${l.forma_pago}</td>
+            <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;text-align:right;font-variant-numeric:tabular-nums;">${formatUSD(Number(l.saldo_real_pendiente))}</td>
+            <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:600;font-variant-numeric:tabular-nums;">${formatUSD(Number(l.monto_a_pagar))}</td>
+            <td style="padding:6px 10px;border-bottom:1px solid #e5e7eb;">${l.responsable_pago}</td>
+          </tr>`;
+        });
+        tableHtml += `</tbody></table>`;
+        const tableDiv = document.createElement("div");
+        tableDiv.innerHTML = tableHtml;
+        container.appendChild(tableDiv);
+
+        // Footer summary
+        const footer = document.createElement("div");
+        footer.style.cssText = "margin-top:20px;padding-top:16px;border-top:2px solid #0d9488;font-size:13px;";
+        const sortedProvs = Object.entries(byProv).sort((a, b) => b[1].total - a[1].total);
+        const totalFacturas = sortedProvs.reduce((s, [, v]) => s + v.count, 0);
+        let summaryHtml = `<div style="font-weight:700;font-size:15px;margin-bottom:12px;">RESUMEN POR PROVEEDOR</div>`;
+        summaryHtml += `<table style="width:100%;border-collapse:collapse;font-size:13px;border:1px solid #d1d5db;">`;
+        summaryHtml += `<thead><tr style="background:#1f2937;color:#fff;">
+          <th style="padding:8px 10px;text-align:center;border:1px solid #d1d5db;">N°</th>
+          <th style="padding:8px 10px;text-align:left;border:1px solid #d1d5db;">Proveedor</th>
+          <th style="padding:8px 10px;text-align:center;border:1px solid #d1d5db;">Facturas</th>
+          <th style="padding:8px 10px;text-align:right;border:1px solid #d1d5db;">Monto Total</th>
+        </tr></thead><tbody>`;
+        sortedProvs.forEach(([name, { total, count }], idx) => {
+          const bg = idx % 2 === 0 ? "#fff" : "#f3f4f6";
+          summaryHtml += `<tr style="background:${bg};">
+            <td style="padding:6px 10px;text-align:center;border:1px solid #e5e7eb;">${idx + 1}</td>
+            <td style="padding:6px 10px;border:1px solid #e5e7eb;">${name}</td>
+            <td style="padding:6px 10px;text-align:center;border:1px solid #e5e7eb;">${count}</td>
+            <td style="padding:6px 10px;text-align:right;border:1px solid #e5e7eb;font-variant-numeric:tabular-nums;">${formatUSD(total)}</td>
+          </tr>`;
+        });
+        summaryHtml += `<tr style="background:#1e3a5f;color:#fff;font-weight:700;">
+          <td style="padding:8px 10px;text-align:center;border:1px solid #d1d5db;" colspan="2">TOTAL GENERAL</td>
+          <td style="padding:8px 10px;text-align:center;border:1px solid #d1d5db;">${totalFacturas}</td>
+          <td style="padding:8px 10px;text-align:right;border:1px solid #d1d5db;font-variant-numeric:tabular-nums;">${formatUSD(grandTotal)}</td>
         </tr>`;
-      });
-      tableHtml += `</tbody></table>`;
-      const tableDiv = document.createElement("div");
-      tableDiv.innerHTML = tableHtml;
-      container.appendChild(tableDiv);
+        summaryHtml += `</tbody></table>`;
+        const now = new Date();
+        const timestamp = `${now.getDate().toString().padStart(2, "0")}/${(now.getMonth() + 1).toString().padStart(2, "0")}/${now.getFullYear()} ${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
+        summaryHtml += `<div style="margin-top:12px;font-size:11px;color:#888;text-align:right;">Generado por EXPORCAMBRIT — ${timestamp}</div>`;
+        footer.innerHTML = summaryHtml;
+        container.appendChild(footer);
 
-      // Footer — summary table
-      const footer = document.createElement("div");
-      footer.style.cssText = "margin-top:20px;padding-top:16px;border-top:2px solid #0d9488;font-size:13px;";
+        document.body.appendChild(container);
+        // FIX 3: scale 3
+        const canvas = await html2canvas(container, { scale: 3, useCORS: true, backgroundColor: "#ffffff" });
+        document.body.removeChild(container);
 
-      const sortedProvs = Object.entries(byProv).sort((a, b) => b[1].total - a[1].total);
-      const totalFacturas = sortedProvs.reduce((s, [, v]) => s + v.count, 0);
-
-      let summaryHtml = `<div style="font-weight:700;font-size:15px;margin-bottom:12px;">RESUMEN POR PROVEEDOR</div>`;
-      summaryHtml += `<table style="width:100%;border-collapse:collapse;font-size:13px;border:1px solid #d1d5db;">`;
-      summaryHtml += `<thead><tr style="background:#1f2937;color:#fff;">
-        <th style="padding:8px 10px;text-align:center;border:1px solid #d1d5db;">N°</th>
-        <th style="padding:8px 10px;text-align:left;border:1px solid #d1d5db;">Proveedor</th>
-        <th style="padding:8px 10px;text-align:center;border:1px solid #d1d5db;">Facturas</th>
-        <th style="padding:8px 10px;text-align:right;border:1px solid #d1d5db;">Monto Total</th>
-      </tr></thead><tbody>`;
-      sortedProvs.forEach(([name, { total, count }], idx) => {
-        const bg = idx % 2 === 0 ? "#fff" : "#f3f4f6";
-        summaryHtml += `<tr style="background:${bg};">
-          <td style="padding:6px 10px;text-align:center;border:1px solid #e5e7eb;">${idx + 1}</td>
-          <td style="padding:6px 10px;border:1px solid #e5e7eb;">${name}</td>
-          <td style="padding:6px 10px;text-align:center;border:1px solid #e5e7eb;">${count}</td>
-          <td style="padding:6px 10px;text-align:right;border:1px solid #e5e7eb;font-variant-numeric:tabular-nums;">${formatUSD(total)}</td>
-        </tr>`;
-      });
-      summaryHtml += `<tr style="background:#1e3a5f;color:#fff;font-weight:700;">
-        <td style="padding:8px 10px;text-align:center;border:1px solid #d1d5db;" colspan="2">TOTAL GENERAL</td>
-        <td style="padding:8px 10px;text-align:center;border:1px solid #d1d5db;">${totalFacturas}</td>
-        <td style="padding:8px 10px;text-align:right;border:1px solid #d1d5db;font-variant-numeric:tabular-nums;">${formatUSD(grandTotal)}</td>
-      </tr>`;
-      summaryHtml += `</tbody></table>`;
-
-      const now = new Date();
-      const timestamp = `${now.getDate().toString().padStart(2, "0")}/${(now.getMonth() + 1).toString().padStart(2, "0")}/${now.getFullYear()} ${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
-      summaryHtml += `<div style="margin-top:12px;font-size:11px;color:#888;text-align:right;">Generado por EXPORCAMBRIT — ${timestamp}</div>`;
-
-      footer.innerHTML = summaryHtml;
-      container.appendChild(footer);
-
-      document.body.appendChild(container);
-
-      const canvas = await html2canvas(container, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
-      document.body.removeChild(container);
-
-      const fileName = `programacion_${selectedSemana}`;
-      if (format === "jpg") {
         const link = document.createElement("a");
-        link.download = `${fileName}.${format}`;
+        link.download = `programacion_${selectedSemana}.jpg`;
         link.href = canvas.toDataURL("image/jpeg", 0.95);
         link.click();
-      } else {
-        const imgData = canvas.toDataURL("image/png");
-        const pdf = new jsPDF({ orientation: "landscape", unit: "px", format: [canvas.width, canvas.height] });
-        pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
-        pdf.save(`${fileName}.pdf`);
       }
       toast.success(`Exportado como ${format.toUpperCase()}`);
     } catch {
@@ -532,7 +606,7 @@ export default function ProgramacionPage() {
               <label className="text-sm font-medium mb-1 block">Facturas</label>
               {facturasConSaldo.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
-                  {selectedProveedor ? "No hay facturas para este proveedor" : "Seleccione un proveedor primero"}
+                  {selectedProveedor ? "No hay facturas pendientes de programar para este proveedor" : "Seleccione un proveedor primero"}
                 </p>
               ) : (
                 <div className="border rounded-md max-h-48 overflow-y-auto">
