@@ -606,7 +606,7 @@ export default function ProgramacionPage() {
               <label className="text-sm font-medium mb-1 block">Facturas</label>
               {facturasConSaldo.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
-                  {selectedProveedor ? "No hay facturas para este proveedor" : "Seleccione un proveedor primero"}
+                  {selectedProveedor ? "No hay facturas pendientes de programar para este proveedor" : "Seleccione un proveedor primero"}
                 </p>
               ) : (
                 <div className="border rounded-md max-h-48 overflow-y-auto">
