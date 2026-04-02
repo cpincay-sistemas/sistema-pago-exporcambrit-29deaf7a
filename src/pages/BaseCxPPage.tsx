@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Search, Download, Upload, ChevronLeft, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
@@ -22,13 +23,14 @@ export default function BaseCxPPage() {
   const [prioridadFilter, setPrioridadFilter] = useState<string>("ALL");
   const [yearFilter, setYearFilter] = useState<string>("ALL");
   const [monthFilter, setMonthFilter] = useState<string>("ALL");
+  const [showPagadas, setShowPagadas] = useState(false);
   const [page, setPage] = useState(0);
   const [importOpen, setImportOpen] = useState(false);
 
-  const getReal = (nf: string) => {
-    const f = facturas.find((x) => x.numero_factura === nf);
+  const getReal = (nf: string, codigoProv: string) => {
+    const f = facturas.find((x) => x.numero_factura === nf && x.codigo_proveedor === codigoProv);
     if (!f) return 0;
-    const abonado = historico.filter((h) => h.numero_factura === nf).reduce((s, h) => s + Number(h.monto_pagado), 0);
+    const abonado = historico.filter((h) => h.numero_factura === nf && h.codigo_proveedor === codigoProv).reduce((s, h) => s + Number(h.monto_pagado), 0);
     return Number(f.saldo_total) - abonado;
   };
 
@@ -56,6 +58,11 @@ export default function BaseCxPPage() {
   const filtered = useMemo(() => {
     return enriched
       .filter((f) => {
+        // Hide zero-saldo invoices unless toggle is on
+        if (!showPagadas) {
+          const saldoReal = getReal(f.numero_factura, f.codigo_proveedor);
+          if (saldoReal <= 0) return false;
+        }
         if (prioridadFilter !== "ALL" && f.prioridad !== prioridadFilter) return false;
         if (yearFilter !== "ALL") {
           const y = f.periodo?.substring(0, 4) || "";
@@ -72,18 +79,18 @@ export default function BaseCxPPage() {
         return true;
       })
       .sort((a, b) => b.dias_vencidos - a.dias_vencidos);
-  }, [enriched, search, prioridadFilter, yearFilter, monthFilter]);
+  }, [enriched, search, prioridadFilter, yearFilter, monthFilter, showPagadas, historico]);
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
-  const totalSaldo = filtered.reduce((s, f) => s + getReal(f.numero_factura), 0);
+  const totalSaldo = filtered.reduce((s, f) => s + getReal(f.numero_factura, f.codigo_proveedor), 0);
 
   const handleExport = () => {
     const ws = XLSX.utils.json_to_sheet(filtered.map((f) => ({
       Proveedor: f.razon_social, Factura: f.numero_factura, Motivo: f.motivo,
       Emision: f.fecha_emision, Vencimiento: f.fecha_vencimiento,
       Dias_Vencidos: f.dias_vencidos, Saldo_Original: Number(f.saldo_total),
-      Saldo_Real: getReal(f.numero_factura), Prioridad: f.prioridad,
+      Saldo_Real: getReal(f.numero_factura, f.codigo_proveedor), Prioridad: f.prioridad,
     })));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "CxP");
@@ -139,6 +146,10 @@ export default function BaseCxPPage() {
             {MONTHS.map((m, i) => (<SelectItem key={m} value={m}>{MONTH_LABELS[i]}</SelectItem>))}
           </SelectContent>
         </Select>
+        <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+          <Checkbox checked={showPagadas} onCheckedChange={(v) => { setShowPagadas(!!v); setPage(0); }} />
+          Mostrar pagadas
+        </label>
       </div>
 
       <div className="bg-card rounded-lg card-shadow overflow-hidden">
@@ -172,7 +183,7 @@ export default function BaseCxPPage() {
                       {saldo === 0 && <Badge variant="secondary" className="bg-gray-300 text-gray-700 text-[10px]">PAGADA</Badge>}
                       {saldo < 0 && <Badge variant="secondary" className="bg-blue-100 text-blue-700 text-[10px]">CRÉDITO A FAVOR</Badge>}
                     </td>
-                    <td className="px-4 py-3 tabular-nums text-right font-semibold">{formatUSD(getReal(f.numero_factura))}</td>
+                    <td className="px-4 py-3 tabular-nums text-right font-semibold">{formatUSD(getReal(f.numero_factura, f.codigo_proveedor))}</td>
                     <td className="px-4 py-3"><PrioridadBadge prioridad={f.prioridad} /></td>
                   </tr>
                 );
