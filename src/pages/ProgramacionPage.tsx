@@ -93,12 +93,29 @@ export default function ProgramacionPage() {
     return facturas.filter((f) => f.codigo_proveedor === selectedProveedor.codigo);
   }, [facturas, selectedProveedor]);
 
+  // FIX 1: Exclude invoices already in programacion (any week) or historico
+  const facturasDisponibles = useMemo(() => {
+    if (!selectedProveedor) return [];
+    // Invoices already programmed in ANY week
+    const programmedKeys = new Set(
+      allLineas.map((l) => `${l.codigo_proveedor}|${l.numero_factura}`)
+    );
+    // Invoices already paid (in historico)
+    const historicKeys = new Set(
+      historico.map((h) => `${h.codigo_proveedor}|${h.numero_factura}`)
+    );
+    return facturasProveedor.filter((f) => {
+      const key = `${f.codigo_proveedor}|${f.numero_factura}`;
+      return !programmedKeys.has(key) && !historicKeys.has(key);
+    });
+  }, [facturasProveedor, allLineas, historico, selectedProveedor]);
+
   const facturasConSaldo = useMemo(() => {
-    return facturasProveedor.map((f) => ({
+    return facturasDisponibles.map((f) => ({
       ...f,
       saldoReal: getSaldoRealPendiente(f.numero_factura),
     }));
-  }, [facturasProveedor, historico]);
+  }, [facturasDisponibles, historico]);
 
   const selectedFacturas = useMemo(() => {
     return facturasConSaldo.filter((f) => selectedFacturaIds.includes(f.id));
