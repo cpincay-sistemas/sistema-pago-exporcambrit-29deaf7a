@@ -89,7 +89,7 @@ export default function BaseCxPPage() {
       Proveedor: f.razon_social, Factura: f.numero_factura, Motivo: f.motivo,
       Emision: f.fecha_emision, Vencimiento: f.fecha_vencimiento,
       Dias_Vencidos: f.dias_vencidos, Saldo_Original: Number(f.saldo_total),
-      Saldo_Real: getReal(f.numero_factura), Prioridad: f.prioridad,
+      Saldo_Real: getReal(f.numero_factura, f.codigo_proveedor), Prioridad: f.prioridad,
     })));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "CxP");
