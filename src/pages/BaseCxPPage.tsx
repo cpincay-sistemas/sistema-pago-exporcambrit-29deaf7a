@@ -145,6 +145,10 @@ export default function BaseCxPPage() {
             {MONTHS.map((m, i) => (<SelectItem key={m} value={m}>{MONTH_LABELS[i]}</SelectItem>))}
           </SelectContent>
         </Select>
+        <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+          <Checkbox checked={showPagadas} onCheckedChange={(v) => { setShowPagadas(!!v); setPage(0); }} />
+          Mostrar pagadas
+        </label>
       </div>
 
       <div className="bg-card rounded-lg card-shadow overflow-hidden">
