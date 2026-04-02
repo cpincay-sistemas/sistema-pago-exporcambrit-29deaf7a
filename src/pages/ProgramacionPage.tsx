@@ -36,6 +36,7 @@ export default function ProgramacionPage() {
   const { data: proveedores = [] } = useProveedores();
   const { data: facturas = [] } = useFacturas();
   const { data: historico = [] } = useHistorico();
+  const { data: allLineas = [] } = useAllLineasProgramacion();
   const { data: programaciones = [] } = useProgramaciones();
   const { canWrite, canApprove, profile } = useAuth();
 
