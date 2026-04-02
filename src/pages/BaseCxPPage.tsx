@@ -82,7 +82,7 @@ export default function BaseCxPPage() {
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
-  const totalSaldo = filtered.reduce((s, f) => s + getReal(f.numero_factura), 0);
+  const totalSaldo = filtered.reduce((s, f) => s + getReal(f.numero_factura, f.codigo_proveedor), 0);
 
   const handleExport = () => {
     const ws = XLSX.utils.json_to_sheet(filtered.map((f) => ({
