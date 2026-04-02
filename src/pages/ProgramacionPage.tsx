@@ -61,10 +61,10 @@ export default function ProgramacionPage() {
 
   const limite = programacion ? Number(programacion.limite_disponible) : 50000;
 
-  const getSaldoRealPendiente = (nf: string) => {
-    const f = facturas.find((x) => x.numero_factura === nf);
+  const getSaldoRealPendiente = (nf: string, codigoProv?: string) => {
+    const f = facturas.find((x) => x.numero_factura === nf && (!codigoProv || x.codigo_proveedor === codigoProv));
     if (!f) return 0;
-    const abonado = historico.filter((h) => h.numero_factura === nf).reduce((s, h) => s + Number(h.monto_pagado), 0);
+    const abonado = historico.filter((h) => h.numero_factura === nf && h.codigo_proveedor === f.codigo_proveedor).reduce((s, h) => s + Number(h.monto_pagado), 0);
     return Number(f.saldo_total) - abonado;
   };
 
