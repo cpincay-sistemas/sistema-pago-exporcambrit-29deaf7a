@@ -22,6 +22,7 @@ export default function BaseCxPPage() {
   const [prioridadFilter, setPrioridadFilter] = useState<string>("ALL");
   const [yearFilter, setYearFilter] = useState<string>("ALL");
   const [monthFilter, setMonthFilter] = useState<string>("ALL");
+  const [showPagadas, setShowPagadas] = useState(false);
   const [page, setPage] = useState(0);
   const [importOpen, setImportOpen] = useState(false);
 
