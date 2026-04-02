@@ -178,7 +178,7 @@ export default function BaseCxPPage() {
                       {saldo === 0 && <Badge variant="secondary" className="bg-gray-300 text-gray-700 text-[10px]">PAGADA</Badge>}
                       {saldo < 0 && <Badge variant="secondary" className="bg-blue-100 text-blue-700 text-[10px]">CRÉDITO A FAVOR</Badge>}
                     </td>
-                    <td className="px-4 py-3 tabular-nums text-right font-semibold">{formatUSD(getReal(f.numero_factura))}</td>
+                    <td className="px-4 py-3 tabular-nums text-right font-semibold">{formatUSD(getReal(f.numero_factura, f.codigo_proveedor))}</td>
                     <td className="px-4 py-3"><PrioridadBadge prioridad={f.prioridad} /></td>
                   </tr>
                 );
