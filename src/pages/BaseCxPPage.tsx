@@ -57,6 +57,11 @@ export default function BaseCxPPage() {
   const filtered = useMemo(() => {
     return enriched
       .filter((f) => {
+        // Hide zero-saldo invoices unless toggle is on
+        if (!showPagadas) {
+          const saldoReal = getReal(f.numero_factura, f.codigo_proveedor);
+          if (saldoReal <= 0) return false;
+        }
         if (prioridadFilter !== "ALL" && f.prioridad !== prioridadFilter) return false;
         if (yearFilter !== "ALL") {
           const y = f.periodo?.substring(0, 4) || "";
@@ -73,7 +78,7 @@ export default function BaseCxPPage() {
         return true;
       })
       .sort((a, b) => b.dias_vencidos - a.dias_vencidos);
-  }, [enriched, search, prioridadFilter, yearFilter, monthFilter]);
+  }, [enriched, search, prioridadFilter, yearFilter, monthFilter, showPagadas, historico]);
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
