@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from "react";
 import {
   useProveedores, useFacturas, useHistorico, useProgramaciones,
-  useLineasProgramacion, useAddProgramacion, useUpdateProgramacion,
+  useLineasProgramacion, useAllLineasProgramacion, useAddProgramacion, useUpdateProgramacion,
   useAddLineaProgramacion, useUpdateLineaProgramacion, useDeleteLineaProgramacion,
 } from "@/hooks/useSupabaseData";
 import { useAuth } from "@/hooks/useAuth";
@@ -19,6 +19,7 @@ import { Plus, Trash2, CheckCircle2, XCircle, Download, Undo2 } from "lucide-rea
 import type { FormaPago, EstadoAprobacion } from "@/types";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 
 const FORMAS_PAGO: FormaPago[] = ["TRANSFERENCIA", "CHEQUE", "EFECTIVO", "ACH"];
