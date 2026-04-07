@@ -82,6 +82,9 @@ export default function PagosEjecutadosPage() {
   }, [lineasFiltradas, pagosEjecutados, programacion, selectedSemana]);
 
   const [edits, setEdits] = useState<Record<string, any>>({});
+  const [sortCol, setSortCol] = useState<string>("proveedor");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [sortClicks, setSortClicks] = useState(0);
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const [archiveReport, setArchiveReport] = useState<any>(null);
   const [archiveStep, setArchiveStep] = useState(0);
