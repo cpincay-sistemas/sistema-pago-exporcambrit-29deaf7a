@@ -31,10 +31,17 @@ export default function SaldoFacturasPage() {
   }, [facturas, historico]);
 
   const filtered = saldos.filter((s) => {
-    if (!search) return true;
-    const q = search.toLowerCase();
-    return s.numero_factura.toLowerCase().includes(q) || s.proveedor.toLowerCase().includes(q);
+    if (estadoFilter && s.estado !== estadoFilter) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      if (!s.numero_factura.toLowerCase().includes(q) && !s.proveedor.toLowerCase().includes(q)) return false;
+    }
+    return true;
   });
+
+  const toggleFilter = (estado: EstadoFactura) => {
+    setEstadoFilter((prev) => (prev === estado ? null : estado));
+  };
 
   const totalOriginal = filtered.reduce((s, f) => s + f.monto_original, 0);
   const totalAbonado = filtered.reduce((s, f) => s + f.total_abonado, 0);
