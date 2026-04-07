@@ -101,6 +101,46 @@ export default function PagosEjecutadosPage() {
     setEdits((prev) => ({ ...prev, [pagoId]: { ...prev[pagoId], [field]: value } }));
   };
 
+  const handleSort = (col: string) => {
+    if (sortCol === col) {
+      const next = sortClicks + 1;
+      if (next >= 2) {
+        // Reset to default
+        setSortCol("proveedor");
+        setSortDir("asc");
+        setSortClicks(0);
+      } else {
+        setSortDir("desc");
+        setSortClicks(next);
+      }
+    } else {
+      setSortCol(col);
+      setSortDir("asc");
+      setSortClicks(0);
+    }
+  };
+
+  const sortedPagos = useMemo(() => {
+    const arr = [...pagos];
+    arr.sort((a, b) => {
+      let cmp = 0;
+      switch (sortCol) {
+        case "proveedor": cmp = a.razon_social.localeCompare(b.razon_social); break;
+        case "factura": cmp = a.numero_factura.localeCompare(b.numero_factura); break;
+        case "monto": cmp = Number(a.monto_pagado) - Number(b.monto_pagado); break;
+        case "fecha": cmp = String(a.fecha_pago).localeCompare(String(b.fecha_pago)); break;
+        default: cmp = 0;
+      }
+      return sortDir === "desc" ? -cmp : cmp;
+    });
+    return arr;
+  }, [pagos, sortCol, sortDir]);
+
+  const SortIcon = ({ col }: { col: string }) => {
+    if (sortCol !== col) return <ArrowUpDown size={12} className="text-muted-foreground/50" />;
+    return sortDir === "asc" ? <ArrowUp size={12} /> : <ArrowDown size={12} />;
+  };
+
   const handleSavePago = async (pago: any) => {
     const merged = { ...pago, ...edits[pago.id] };
     delete merged._isStub;
