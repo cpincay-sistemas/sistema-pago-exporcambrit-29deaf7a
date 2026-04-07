@@ -111,10 +111,16 @@ export default function ProgramacionPage() {
   }, [facturasProveedor, allLineas, historico, selectedProveedor]);
 
   const facturasConSaldo = useMemo(() => {
-    return facturasDisponibles.map((f) => ({
-      ...f,
-      saldoReal: getSaldoRealPendiente(f.numero_factura, f.codigo_proveedor),
-    }));
+    return facturasDisponibles
+      .map((f) => ({
+        ...f,
+        saldoReal: getSaldoRealPendiente(f.numero_factura, f.codigo_proveedor),
+      }))
+      .sort((a, b) => {
+        const dateA = a.fecha_emision ? new Date(a.fecha_emision).getTime() : 0;
+        const dateB = b.fecha_emision ? new Date(b.fecha_emision).getTime() : 0;
+        return dateA - dateB;
+      });
   }, [facturasDisponibles, historico]);
 
   const selectedFacturas = useMemo(() => {
