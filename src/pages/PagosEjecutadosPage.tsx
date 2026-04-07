@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Archive, AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Upload } from "lucide-react";
+import { Archive, AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Upload, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import * as XLSX from "xlsx";
 
 const BANCOS_ORIGEN = ["Produbanco Empresa", "Banco Pichincha Empresa", "Banco Guayaquil Empresa", "Banco del Pacífico Empresa"];
