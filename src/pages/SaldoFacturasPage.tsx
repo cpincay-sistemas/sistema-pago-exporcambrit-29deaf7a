@@ -59,19 +59,32 @@ export default function SaldoFacturasPage() {
         <p className="text-sm text-muted-foreground">Control de abonos parciales y estado real de cada factura</p>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        {[
-          { label: "Total Facturas", value: String(filtered.length) },
-          { label: "Pagadas", value: String(pagadas) },
-          { label: "Con Abono", value: String(parciales) },
-          { label: "Pendientes", value: String(pendientes) },
-          { label: "Total Abonado", value: formatUSD(totalAbonado) },
-          { label: "Saldo Pendiente", value: formatUSD(totalPendiente) },
-        ].map((item) => (
-          <div key={item.label} className="bg-card rounded-lg p-3 card-shadow text-center">
+        <div className="bg-card rounded-lg p-3 card-shadow text-center">
+          <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Total Facturas</p>
+          <p className="text-lg font-semibold tabular-nums mt-0.5">{filtered.length}</p>
+        </div>
+        {([
+          { label: "Pagadas", value: String(pagadas), estado: "PAGADA_COMPLETA" as EstadoFactura },
+          { label: "Con Abono", value: String(parciales), estado: "ABONO_PARCIAL" as EstadoFactura },
+          { label: "Pendientes", value: String(pendientes), estado: "PENDIENTE" as EstadoFactura },
+        ]).map((item) => (
+          <div
+            key={item.label}
+            onClick={() => toggleFilter(item.estado)}
+            className={`bg-card rounded-lg p-3 card-shadow text-center cursor-pointer transition-all hover:ring-2 hover:ring-primary/40 ${estadoFilter === item.estado ? "ring-2 ring-primary shadow-md" : ""}`}
+          >
             <p className="text-[11px] uppercase tracking-wider text-muted-foreground">{item.label}</p>
             <p className="text-lg font-semibold tabular-nums mt-0.5">{item.value}</p>
           </div>
         ))}
+        <div className="bg-card rounded-lg p-3 card-shadow text-center">
+          <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Total Abonado</p>
+          <p className="text-lg font-semibold tabular-nums mt-0.5">{formatUSD(totalAbonado)}</p>
+        </div>
+        <div className="bg-card rounded-lg p-3 card-shadow text-center">
+          <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Saldo Pendiente</p>
+          <p className="text-lg font-semibold tabular-nums mt-0.5">{formatUSD(totalPendiente)}</p>
+        </div>
       </div>
       <div className="relative max-w-sm">
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
