@@ -384,20 +384,28 @@ export default function PagosEjecutadosPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>#</TableHead>
-                <TableHead>Proveedor</TableHead>
-                <TableHead>Factura</TableHead>
-                <TableHead className="text-right">Monto</TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => handleSort("proveedor")}>
+                  <span className="inline-flex items-center gap-1">Proveedor <SortIcon col="proveedor" /></span>
+                </TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => handleSort("factura")}>
+                  <span className="inline-flex items-center gap-1">Factura <SortIcon col="factura" /></span>
+                </TableHead>
+                <TableHead className="text-right cursor-pointer select-none" onClick={() => handleSort("monto")}>
+                  <span className="inline-flex items-center gap-1 justify-end">Monto <SortIcon col="monto" /></span>
+                </TableHead>
                 <TableHead>Forma Pago</TableHead>
                 <TableHead>Banco Origen ✏️</TableHead>
                 <TableHead>Banco Destino</TableHead>
                 <TableHead>N° Transferencia ✏️</TableHead>
-                <TableHead>Fecha Pago ✏️</TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => handleSort("fecha")}>
+                  <span className="inline-flex items-center gap-1">Fecha Pago ✏️ <SortIcon col="fecha" /></span>
+                </TableHead>
                 <TableHead className="text-right">Saldo Post-Pago</TableHead>
                 <TableHead className="text-center">Guardar</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {pagos.map((p, i) => (
+              {sortedPagos.map((p, i) => (
                 <TableRow key={p.id}>
                   <TableCell className="text-sm font-mono">{i + 1}</TableCell>
                   <TableCell>
