@@ -9,6 +9,7 @@ export default function SaldoFacturasPage() {
   const { data: facturas = [] } = useFacturas();
   const { data: historico = [] } = useHistorico();
   const [search, setSearch] = useState("");
+  const [estadoFilter, setEstadoFilter] = useState<EstadoFactura | null>(null);
 
   const saldos = useMemo(() => {
     return facturas.map((f) => {
