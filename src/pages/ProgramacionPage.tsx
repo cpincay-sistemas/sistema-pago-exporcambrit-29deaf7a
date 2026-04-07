@@ -628,13 +628,16 @@ export default function ProgramacionPage() {
                             disabled={isZero}
                           />
                           <span className="text-sm font-mono truncate flex items-center gap-1">
-                            {f.numero_factura}
-                            {isCredit && <Badge variant="secondary" className="bg-blue-100 text-blue-700 text-[10px]">CRÉDITO</Badge>}
-                          </span>
-                        </label>
-                        <span className={`text-xs tabular-nums whitespace-nowrap ${isCredit ? "text-blue-600" : "text-muted-foreground"}`}>
-                          Saldo: {formatUSD(f.saldoReal)}
-                        </span>
+                             {f.numero_factura}
+                             {isCredit && <Badge variant="secondary" className="bg-blue-100 text-blue-700 text-[10px]">CRÉDITO</Badge>}
+                           </span>
+                         </label>
+                         <span className="text-xs text-muted-foreground whitespace-nowrap">
+                           {f.fecha_emision ? formatDate(f.fecha_emision) : "Sin fecha"}
+                         </span>
+                         <span className={`text-xs tabular-nums whitespace-nowrap ${isCredit ? "text-blue-600" : "text-muted-foreground"}`}>
+                           Saldo: {formatUSD(f.saldoReal)}
+                         </span>
                         {selectedFacturaIds.includes(f.id) && !isCredit && !isZero && (
                           <Input
                             type="number"
