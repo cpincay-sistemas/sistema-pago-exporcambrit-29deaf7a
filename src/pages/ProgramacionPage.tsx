@@ -111,10 +111,16 @@ export default function ProgramacionPage() {
   }, [facturasProveedor, allLineas, historico, selectedProveedor]);
 
   const facturasConSaldo = useMemo(() => {
-    return facturasDisponibles.map((f) => ({
-      ...f,
-      saldoReal: getSaldoRealPendiente(f.numero_factura, f.codigo_proveedor),
-    }));
+    return facturasDisponibles
+      .map((f) => ({
+        ...f,
+        saldoReal: getSaldoRealPendiente(f.numero_factura, f.codigo_proveedor),
+      }))
+      .sort((a, b) => {
+        const dateA = a.fecha_emision ? new Date(a.fecha_emision).getTime() : 0;
+        const dateB = b.fecha_emision ? new Date(b.fecha_emision).getTime() : 0;
+        return dateA - dateB;
+      });
   }, [facturasDisponibles, historico]);
 
   const selectedFacturas = useMemo(() => {
@@ -622,13 +628,16 @@ export default function ProgramacionPage() {
                             disabled={isZero}
                           />
                           <span className="text-sm font-mono truncate flex items-center gap-1">
-                            {f.numero_factura}
-                            {isCredit && <Badge variant="secondary" className="bg-blue-100 text-blue-700 text-[10px]">CRÉDITO</Badge>}
-                          </span>
-                        </label>
-                        <span className={`text-xs tabular-nums whitespace-nowrap ${isCredit ? "text-blue-600" : "text-muted-foreground"}`}>
-                          Saldo: {formatUSD(f.saldoReal)}
-                        </span>
+                             {f.numero_factura}
+                             {isCredit && <Badge variant="secondary" className="bg-blue-100 text-blue-700 text-[10px]">CRÉDITO</Badge>}
+                           </span>
+                         </label>
+                         <span className="text-xs text-muted-foreground whitespace-nowrap">
+                           {f.fecha_emision ? formatDate(f.fecha_emision) : "Sin fecha"}
+                         </span>
+                         <span className={`text-xs tabular-nums whitespace-nowrap ${isCredit ? "text-blue-600" : "text-muted-foreground"}`}>
+                           Saldo: {formatUSD(f.saldoReal)}
+                         </span>
                         {selectedFacturaIds.includes(f.id) && !isCredit && !isZero && (
                           <Input
                             type="number"
