@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Archive, AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Upload } from "lucide-react";
+import { Archive, AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Upload, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import * as XLSX from "xlsx";
 
 const BANCOS_ORIGEN = ["Produbanco Empresa", "Banco Pichincha Empresa", "Banco Guayaquil Empresa", "Banco del Pacífico Empresa"];
@@ -82,6 +82,9 @@ export default function PagosEjecutadosPage() {
   }, [lineasFiltradas, pagosEjecutados, programacion, selectedSemana]);
 
   const [edits, setEdits] = useState<Record<string, any>>({});
+  const [sortCol, setSortCol] = useState<string>("proveedor");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [sortClicks, setSortClicks] = useState(0);
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const [archiveReport, setArchiveReport] = useState<any>(null);
   const [archiveStep, setArchiveStep] = useState(0);
@@ -96,6 +99,46 @@ export default function PagosEjecutadosPage() {
   const getEditValue = (pagoId: string, field: string) => edits[pagoId]?.[field];
   const setEditValue = (pagoId: string, field: string, value: string) => {
     setEdits((prev) => ({ ...prev, [pagoId]: { ...prev[pagoId], [field]: value } }));
+  };
+
+  const handleSort = (col: string) => {
+    if (sortCol === col) {
+      const next = sortClicks + 1;
+      if (next >= 2) {
+        // Reset to default
+        setSortCol("proveedor");
+        setSortDir("asc");
+        setSortClicks(0);
+      } else {
+        setSortDir("desc");
+        setSortClicks(next);
+      }
+    } else {
+      setSortCol(col);
+      setSortDir("asc");
+      setSortClicks(0);
+    }
+  };
+
+  const sortedPagos = useMemo(() => {
+    const arr = [...pagos];
+    arr.sort((a, b) => {
+      let cmp = 0;
+      switch (sortCol) {
+        case "proveedor": cmp = a.razon_social.localeCompare(b.razon_social); break;
+        case "factura": cmp = a.numero_factura.localeCompare(b.numero_factura); break;
+        case "monto": cmp = Number(a.monto_pagado) - Number(b.monto_pagado); break;
+        case "fecha": cmp = String(a.fecha_pago).localeCompare(String(b.fecha_pago)); break;
+        default: cmp = 0;
+      }
+      return sortDir === "desc" ? -cmp : cmp;
+    });
+    return arr;
+  }, [pagos, sortCol, sortDir]);
+
+  const SortIcon = ({ col }: { col: string }) => {
+    if (sortCol !== col) return <ArrowUpDown size={12} className="text-muted-foreground/50" />;
+    return sortDir === "asc" ? <ArrowUp size={12} /> : <ArrowDown size={12} />;
   };
 
   const handleSavePago = async (pago: any) => {
@@ -341,20 +384,28 @@ export default function PagosEjecutadosPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>#</TableHead>
-                <TableHead>Proveedor</TableHead>
-                <TableHead>Factura</TableHead>
-                <TableHead className="text-right">Monto</TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => handleSort("proveedor")}>
+                  <span className="inline-flex items-center gap-1">Proveedor <SortIcon col="proveedor" /></span>
+                </TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => handleSort("factura")}>
+                  <span className="inline-flex items-center gap-1">Factura <SortIcon col="factura" /></span>
+                </TableHead>
+                <TableHead className="text-right cursor-pointer select-none" onClick={() => handleSort("monto")}>
+                  <span className="inline-flex items-center gap-1 justify-end">Monto <SortIcon col="monto" /></span>
+                </TableHead>
                 <TableHead>Forma Pago</TableHead>
                 <TableHead>Banco Origen ✏️</TableHead>
                 <TableHead>Banco Destino</TableHead>
                 <TableHead>N° Transferencia ✏️</TableHead>
-                <TableHead>Fecha Pago ✏️</TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => handleSort("fecha")}>
+                  <span className="inline-flex items-center gap-1">Fecha Pago ✏️ <SortIcon col="fecha" /></span>
+                </TableHead>
                 <TableHead className="text-right">Saldo Post-Pago</TableHead>
                 <TableHead className="text-center">Guardar</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {pagos.map((p, i) => (
+              {sortedPagos.map((p, i) => (
                 <TableRow key={p.id}>
                   <TableCell className="text-sm font-mono">{i + 1}</TableCell>
                   <TableCell>

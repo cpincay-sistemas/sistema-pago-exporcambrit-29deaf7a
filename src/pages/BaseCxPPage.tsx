@@ -5,13 +5,14 @@ import { formatUSD, formatDate, calcularDiasVencidos, calcularPrioridad } from "
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Search, Download, Upload, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Download, Upload, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import ImportERPDialog from "@/components/ImportERPDialog";
+import NuevaFacturaDialog from "@/components/NuevaFacturaDialog";
 
 const PAGE_SIZE = 25;
 
@@ -26,6 +27,7 @@ export default function BaseCxPPage() {
   const [showPagadas, setShowPagadas] = useState(false);
   const [page, setPage] = useState(0);
   const [importOpen, setImportOpen] = useState(false);
+  const [nuevaFacturaOpen, setNuevaFacturaOpen] = useState(false);
 
   const getReal = (nf: string, codigoProv: string) => {
     const f = facturas.find((x) => x.numero_factura === nf && x.codigo_proveedor === codigoProv);
@@ -107,9 +109,14 @@ export default function BaseCxPPage() {
         </div>
         <div className="flex gap-2">
           {canWrite() && (
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setImportOpen(true)}>
-              <Upload size={15} /> Importar ERP
-            </Button>
+            <>
+              <Button size="sm" className="gap-1.5" onClick={() => setNuevaFacturaOpen(true)}>
+                <Plus size={15} /> Nueva Factura
+              </Button>
+              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setImportOpen(true)}>
+                <Upload size={15} /> Importar ERP
+              </Button>
+            </>
           )}
           <Button variant="outline" size="sm" className="gap-1.5" onClick={handleExport}>
             <Download size={15} /> Exportar
@@ -205,6 +212,7 @@ export default function BaseCxPPage() {
         )}
       </div>
       <ImportERPDialog open={importOpen} onOpenChange={setImportOpen} />
+      <NuevaFacturaDialog open={nuevaFacturaOpen} onOpenChange={setNuevaFacturaOpen} />
     </div>
   );
 }
