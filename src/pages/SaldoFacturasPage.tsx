@@ -12,8 +12,15 @@ export default function SaldoFacturasPage() {
   const [estadoFilter, setEstadoFilter] = useState<EstadoFactura | null>(null);
 
   const saldos = useMemo(() => {
-    return facturas.map((f) => {
-      const totalAbonado = historico.filter((h) => h.numero_factura === f.numero_factura).reduce((s, h) => s + Number(h.monto_pagado), 0);
+    // Deduplicate by factura id to avoid duplicate rows (BUG B)
+    const seen = new Set<string>();
+    return facturas.filter((f) => {
+      if (seen.has(f.id)) return false;
+      seen.add(f.id);
+      return true;
+    }).map((f) => {
+      // BUG A fix: use composite key (numero_factura + codigo_proveedor)
+      const totalAbonado = historico.filter((h) => h.numero_factura === f.numero_factura && h.codigo_proveedor === f.codigo_proveedor).reduce((s, h) => s + Number(h.monto_pagado), 0);
       const saldoReal = Number(f.saldo_total) - totalAbonado;
       const estado: EstadoFactura = saldoReal <= 0 ? "PAGADA_COMPLETA" : totalAbonado > 0 ? "ABONO_PARCIAL" : "PENDIENTE";
       return {
