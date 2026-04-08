@@ -93,43 +93,45 @@ export default function ProgramacionPage() {
     return facturas.filter((f) => f.codigo_proveedor === selectedProveedor.codigo);
   }, [facturas, selectedProveedor]);
 
-  // FIX 1: Exclude invoices already in programacion (any week) or historico
-  const facturasDisponibles = useMemo(() => {
+  // Facturas disponibles: excluir solo las programadas en la semana activa
+  // y las que tienen saldo_real <= 0 (ya pagadas completamente)
+  const facturasConSaldo = useMemo(() => {
     if (!selectedProveedor) return [];
-    // Invoices already programmed in ANY week
-    const programmedKeys = new Set(
-      allLineas.map((l) => `${l.codigo_proveedor}|${l.numero_factura}`)
+
+    // Keys programadas en la semana activa solamente
+    const programmedThisWeek = new Set(
+      allLineas
+        .filter((l) => programacion && l.semana_id === programacion.id)
+        .map((l) => `${l.codigo_proveedor}|${l.numero_factura}`)
     );
-    // BUG C fix: Only exclude from historico if fully paid (saldo_real <= 0)
-    // Build map of total paid per composite key from historico
+
+    // Abonos totales por factura+proveedor desde histórico
     const historicPaid = new Map<string, number>();
     historico.forEach((h) => {
       const key = `${h.codigo_proveedor}|${h.numero_factura}`;
       historicPaid.set(key, (historicPaid.get(key) || 0) + Number(h.monto_pagado));
     });
-    return facturasProveedor.filter((f) => {
-      const key = `${f.codigo_proveedor}|${f.numero_factura}`;
-      // Exclude if already programmed in any week
-      if (programmedKeys.has(key)) return false;
-      // Exclude only if fully paid (saldo_real <= 0)
-      const paid = historicPaid.get(key) || 0;
-      if (paid > 0 && Number(f.saldo_total) - paid <= 0) return false;
-      return true;
-    });
-  }, [facturasProveedor, allLineas, historico, selectedProveedor]);
 
-  const facturasConSaldo = useMemo(() => {
-    return facturasDisponibles
-      .map((f) => ({
-        ...f,
-        saldoReal: getSaldoRealPendiente(f.numero_factura, f.codigo_proveedor),
-      }))
+    return facturasProveedor
+      .map((f) => {
+        const key = `${f.codigo_proveedor}|${f.numero_factura}`;
+        const paid = historicPaid.get(key) || 0;
+        const saldoReal = Number(f.saldo_total) - paid;
+        return { ...f, saldoReal, _key: key };
+      })
+      .filter((f) => {
+        // Excluir si ya programada en esta semana
+        if (programmedThisWeek.has(f._key)) return false;
+        // Excluir si saldo_real <= 0 (totalmente pagada)
+        if (f.saldoReal <= 0) return false;
+        return true;
+      })
       .sort((a, b) => {
         const dateA = a.fecha_emision ? new Date(a.fecha_emision).getTime() : 0;
         const dateB = b.fecha_emision ? new Date(b.fecha_emision).getTime() : 0;
         return dateA - dateB;
       });
-  }, [facturasDisponibles, historico]);
+  }, [facturasProveedor, allLineas, historico, selectedProveedor, programacion]);
 
   const selectedFacturas = useMemo(() => {
     return facturasConSaldo.filter((f) => selectedFacturaIds.includes(f.id));
