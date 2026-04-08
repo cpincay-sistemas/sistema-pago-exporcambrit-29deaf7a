@@ -72,10 +72,10 @@ export default function DashboardPage() {
 
   const periodLabel = period === "week" ? "Esta semana" : period === "month" ? "Este mes" : period === "year" ? "Este año" : period === "specific" ? `Semana ${specificWeek}` : "Todo";
 
-  const getReal = (nf: string) => {
-    const f = facturas.find((x) => x.numero_factura === nf);
+  const getReal = (nf: string, codigoProv?: string) => {
+    const f = facturas.find((x) => x.numero_factura === nf && (!codigoProv || x.codigo_proveedor === codigoProv));
     if (!f) return 0;
-    const abonado = historico.filter((h) => h.numero_factura === nf).reduce((s, h) => s + Number(h.monto_pagado), 0);
+    const abonado = historico.filter((h) => h.numero_factura === nf && h.codigo_proveedor === f.codigo_proveedor).reduce((s, h) => s + Number(h.monto_pagado), 0);
     return Number(f.saldo_total) - abonado;
   };
 
@@ -88,21 +88,21 @@ export default function DashboardPage() {
   const filteredFacturas = useMemo(() => enriched.filter((f) => inRange(f.fecha_vencimiento, bounds)), [enriched, bounds]);
   const filteredHistorico = useMemo(() => historico.filter((h) => inRange(h.fecha_pago, bounds)), [historico, bounds]);
 
-  const activasConSaldo = filteredFacturas.filter((f) => getReal(f.numero_factura) > 0);
-  const totalPendiente = activasConSaldo.reduce((s, f) => s + getReal(f.numero_factura), 0);
-  const vencidoCritico = activasConSaldo.filter((f) => f.prioridad === "CRITICO").reduce((s, f) => s + getReal(f.numero_factura), 0);
+  const activasConSaldo = filteredFacturas.filter((f) => getReal(f.numero_factura, f.codigo_proveedor) > 0);
+  const totalPendiente = activasConSaldo.reduce((s, f) => s + getReal(f.numero_factura, f.codigo_proveedor), 0);
+  const vencidoCritico = activasConSaldo.filter((f) => f.prioridad === "CRITICO").reduce((s, f) => s + getReal(f.numero_factura, f.codigo_proveedor), 0);
   const pagadoPeriodo = filteredHistorico.reduce((s, h) => s + Number(h.monto_pagado), 0);
   const facturasOver30 = activasConSaldo.filter((f) => f.dias_vencidos >= 30).length;
 
   const prioridadData = (["CRITICO", "URGENTE", "PROXIMO", "AL_DIA"] as const).map((p) => ({
     name: p.replace("_", " "),
     value: activasConSaldo.filter((f) => f.prioridad === p).length,
-    amount: activasConSaldo.filter((f) => f.prioridad === p).reduce((s, f) => s + getReal(f.numero_factura), 0),
+    amount: activasConSaldo.filter((f) => f.prioridad === p).reduce((s, f) => s + getReal(f.numero_factura, f.codigo_proveedor), 0),
   }));
 
   const provMap = new Map<string, number>();
   activasConSaldo.forEach((f) => {
-    provMap.set(f.razon_social, (provMap.get(f.razon_social) || 0) + getReal(f.numero_factura));
+    provMap.set(f.razon_social, (provMap.get(f.razon_social) || 0) + getReal(f.numero_factura, f.codigo_proveedor));
   });
   const pieData = [...provMap.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5)
     .map(([name, value]) => ({ name: name.length > 15 ? name.substring(0, 15) + "…" : name, value }));

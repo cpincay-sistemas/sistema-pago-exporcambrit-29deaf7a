@@ -36,7 +36,7 @@ export function useUpdateProveedor() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...data }: { id: string; [key: string]: any }) => {
-      const { error } = await supabase.from("proveedores").update(data).eq("id", id);
+      const { error } = await supabase.from("proveedores").update(data as any).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["proveedores"] }); },
@@ -96,7 +96,7 @@ export function useUpdateProgramacion() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...data }: { id: string; [key: string]: any }) => {
-      const { error } = await supabase.from("programaciones").update(data).eq("id", id);
+      const { error } = await supabase.from("programaciones").update(data as any).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["programaciones"] }); },
@@ -145,7 +145,7 @@ export function useUpdateLineaProgramacion() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...data }: { id: string; [key: string]: any }) => {
-      const { error } = await supabase.from("lineas_programacion").update(data).eq("id", id);
+      const { error } = await supabase.from("lineas_programacion").update(data as any).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["lineas_programacion"] }); },
@@ -191,7 +191,7 @@ export function useUpdatePagoEjecutado() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...data }: { id: string; [key: string]: any }) => {
-      const { error } = await supabase.from("pagos_ejecutados").update(data).eq("id", id);
+      const { error } = await supabase.from("pagos_ejecutados").update(data as any).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["pagos_ejecutados"] }); },
@@ -264,7 +264,7 @@ export function useUpdateProfile() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...data }: { id: string; [key: string]: any }) => {
-      const { error } = await supabase.from("profiles").update(data).eq("id", id);
+      const { error } = await supabase.from("profiles").update(data as any).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["profiles"] }); },

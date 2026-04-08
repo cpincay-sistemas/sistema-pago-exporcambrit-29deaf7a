@@ -100,13 +100,21 @@ export default function ProgramacionPage() {
     const programmedKeys = new Set(
       allLineas.map((l) => `${l.codigo_proveedor}|${l.numero_factura}`)
     );
-    // Invoices already paid (in historico)
-    const historicKeys = new Set(
-      historico.map((h) => `${h.codigo_proveedor}|${h.numero_factura}`)
-    );
+    // BUG C fix: Only exclude from historico if fully paid (saldo_real <= 0)
+    // Build map of total paid per composite key from historico
+    const historicPaid = new Map<string, number>();
+    historico.forEach((h) => {
+      const key = `${h.codigo_proveedor}|${h.numero_factura}`;
+      historicPaid.set(key, (historicPaid.get(key) || 0) + Number(h.monto_pagado));
+    });
     return facturasProveedor.filter((f) => {
       const key = `${f.codigo_proveedor}|${f.numero_factura}`;
-      return !programmedKeys.has(key) && !historicKeys.has(key);
+      // Exclude if already programmed in any week
+      if (programmedKeys.has(key)) return false;
+      // Exclude only if fully paid (saldo_real <= 0)
+      const paid = historicPaid.get(key) || 0;
+      if (paid > 0 && Number(f.saldo_total) - paid <= 0) return false;
+      return true;
     });
   }, [facturasProveedor, allLineas, historico, selectedProveedor]);
 
