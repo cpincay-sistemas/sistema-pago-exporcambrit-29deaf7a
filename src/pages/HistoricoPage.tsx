@@ -1,14 +1,10 @@
 import { useState, useMemo } from "react";
 import { useHistorico } from "@/hooks/useSupabaseData";
-import { useAuth } from "@/hooks/useAuth";
 import { formatUSD, formatDate } from "@/lib/business-rules";
 import { Input } from "@/components/ui/input";
-import { Search, ChevronLeft, ChevronRight, Download, Trash2 } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { supabase } from "@/integrations/supabase/client";
-import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 
@@ -16,12 +12,8 @@ const PAGE_SIZE = 25;
 
 export default function HistoricoPage() {
   const { data: historico = [] } = useHistorico();
-  const { isAdmin } = useAuth();
-  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [deleting, setDeleting] = useState(false);
 
   const filtered = useMemo(() => {
     return historico
@@ -89,11 +81,6 @@ export default function HistoricoPage() {
           <p className="text-sm text-muted-foreground">{filtered.length} registros — Total: {formatUSD(totalPagado)}</p>
         </div>
         <div className="flex gap-2">
-          {isAdmin() && (
-            <Button variant="destructive" size="sm" className="gap-1.5" onClick={() => setShowDeleteConfirm(true)}>
-              <Trash2 size={15} /> Borrar Todo
-            </Button>
-          )}
           <Select onValueChange={(v) => handleExport(v as "csv" | "xlsx")}>
             <SelectTrigger className="w-36">
               <div className="flex items-center gap-1.5"><Download size={15} /> Exportar</div>
@@ -150,22 +137,6 @@ export default function HistoricoPage() {
         )}
       </div>
 
-      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>¿Eliminar todo el histórico?</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            Se eliminarán permanentemente <strong>{historico.length}</strong> registros. Esta acción no se puede deshacer.
-          </p>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDeleteConfirm(false)} disabled={deleting}>Cancelar</Button>
-            <Button variant="destructive" onClick={handleDeleteAll} disabled={deleting}>
-              {deleting ? "Eliminando…" : "Sí, eliminar todo"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
