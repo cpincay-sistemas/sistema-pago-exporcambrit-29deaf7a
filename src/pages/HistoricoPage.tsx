@@ -29,25 +29,7 @@ export default function HistoricoPage() {
   const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
   const totalPagado = filtered.reduce((s, h) => s + Number(h.monto_pagado), 0);
 
-  const handleDeleteAll = async () => {
-    setDeleting(true);
-    try {
-      const ids = historico.map((h) => h.id);
-      const batchSize = 100;
-      for (let i = 0; i < ids.length; i += batchSize) {
-        const batch = ids.slice(i, i + batchSize);
-        const { error } = await supabase.from("historico").delete().in("id", batch);
-        if (error) throw error;
-      }
-      queryClient.invalidateQueries({ queryKey: ["historico"] });
-      toast.success(`${ids.length} registros eliminados del histórico`);
-    } catch (err: any) {
-      toast.error(err.message || "Error al eliminar");
-    } finally {
-      setDeleting(false);
-      setShowDeleteConfirm(false);
-    }
-  };
+
 
   const handleExport = (format: "csv" | "xlsx") => {
     const data = filtered.map((h) => ({
