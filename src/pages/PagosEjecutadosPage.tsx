@@ -162,19 +162,25 @@ export default function PagosEjecutadosPage() {
   const handleArchiveWeek = () => {
     if (!canWrite()) { toast.error("No tiene permisos para archivar"); return; }
     const mergedPagos = pagos.map((p) => ({ ...p, ...edits[p.id] }));
-    const factNums = mergedPagos.map((p) => p.numero_factura);
-    const internalDups = factNums.filter((n, i) => factNums.indexOf(n) !== i);
-    if (internalDups.length > 0) {
-      setArchiveReport({ toArchive: 0, duplicates: [], internalDups: [...new Set(internalDups)] });
+    const compositeKeys = mergedPagos.map((p) => `${p.codigo_proveedor}|${p.numero_factura}`);
+    const internalDupKeys = compositeKeys.filter((k, i) => compositeKeys.indexOf(k) !== i);
+    if (internalDupKeys.length > 0) {
+      const internalDups = [...new Set(internalDupKeys)].map((k) => k.split("|")[1]);
+      setArchiveReport({ toArchive: 0, duplicates: [], internalDups });
       setArchiveStep(3); setShowArchiveDialog(true); return;
     }
     const alreadyArchived = historico.some((h) => h.semana === selectedSemana);
-    const duplicates = mergedPagos.filter((p) => historico.some((h) => h.numero_factura === p.numero_factura)).map((p) => p.numero_factura);
+    const duplicateKeys = new Set(
+      mergedPagos
+        .filter((p) => historico.some((h) => h.numero_factura === p.numero_factura && h.codigo_proveedor === p.codigo_proveedor))
+        .map((p) => `${p.codigo_proveedor}|${p.numero_factura}`)
+    );
+    const duplicates = [...duplicateKeys].map((k) => k.split("|")[1]);
     const missingTransfer = mergedPagos.filter((p) => !p.numero_transferencia);
     if (missingTransfer.length > 0) {
       toast.error(`Falta número de transferencia en ${missingTransfer.length} pago(s).`); return;
     }
-    const toArchive = mergedPagos.filter((p) => !duplicates.includes(p.numero_factura)).length;
+    const toArchive = mergedPagos.filter((p) => !duplicateKeys.has(`${p.codigo_proveedor}|${p.numero_factura}`)).length;
     setArchiveReport({ toArchive, duplicates, internalDups: [] });
     setArchiveStep(alreadyArchived ? 1 : duplicates.length > 0 ? 2 : 0);
     setShowArchiveDialog(true);
@@ -182,8 +188,12 @@ export default function PagosEjecutadosPage() {
 
   const confirmArchive = async () => {
     const mergedPagos = pagos.map((p) => ({ ...p, ...edits[p.id] }));
-    const duplicateNums = archiveReport?.duplicates || [];
-    const toArchive = mergedPagos.filter((p) => !duplicateNums.includes(p.numero_factura));
+    const duplicateKeys = new Set(
+      mergedPagos
+        .filter((p) => historico.some((h) => h.numero_factura === p.numero_factura && h.codigo_proveedor === p.codigo_proveedor))
+        .map((p) => `${p.codigo_proveedor}|${p.numero_factura}`)
+    );
+    const toArchive = mergedPagos.filter((p) => !duplicateKeys.has(`${p.codigo_proveedor}|${p.numero_factura}`));
 
     const records = toArchive.map((p) => {
       const f = facturas.find((f) => f.numero_factura === p.numero_factura);
