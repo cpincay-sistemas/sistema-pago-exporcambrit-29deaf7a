@@ -85,7 +85,7 @@ export default function SaldoFacturasPage() {
 
   // Unique providers list
   const allProveedores = useMemo(() => {
-    const unique = [...new Set(saldos.map((s) => s.proveedor))].sort();
+    const unique = Array.from(new Set(saldos.map((s) => s.proveedor))).sort();
     return unique;
   }, [saldos]);
 
@@ -147,14 +147,14 @@ export default function SaldoFacturasPage() {
       arr.push(s);
       byProvider.set(s.proveedor, arr);
     });
-    const providerOrder = [...byProvider.entries()].sort((a, b) => {
+    const providerOrder = Array.from(byProvider.entries()).sort((a, b) => {
       const sa = a[1].reduce((t, r) => t + r.saldo_real_pendiente, 0);
       const sb = b[1].reduce((t, r) => t + r.saldo_real_pendiente, 0);
       return sb - sa;
     });
 
     const today = format(new Date(), "dd/MM/yyyy");
-    const provNames = selectedProveedores.length > 0 ? selectedProveedores : [...byProvider.keys()];
+    const provNames = selectedProveedores.length > 0 ? selectedProveedores : Array.from(byProvider.keys());
 
     // ========== PAGE 1 — Cover ==========
     doc.setFillColor(30, 58, 95);
