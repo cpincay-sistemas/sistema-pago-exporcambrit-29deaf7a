@@ -135,12 +135,13 @@ export default function SaldoFacturasPage() {
 
     toast.info("Generando informe PDF...");
 
-    const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
     const pageW = doc.internal.pageSize.getWidth();
     const pageH = doc.internal.pageSize.getHeight();
-    const margin = 15;
+    const margin = 12;
+    const contentW = pageW - margin * 2;
 
-    // Group by provider
+    // Group by provider, sorted by saldo desc
     const byProvider = new Map<string, SaldoRow[]>();
     filtered.forEach((s) => {
       const arr = byProvider.get(s.proveedor) || [];
@@ -155,71 +156,84 @@ export default function SaldoFacturasPage() {
 
     const today = format(new Date(), "dd/MM/yyyy");
     const provNames = selectedProveedores.length > 0 ? selectedProveedores : Array.from(byProvider.keys());
+    const headerColor: [number, number, number] = [30, 58, 95];
+
+    // Helper: estado display
+    const estadoLabel = (e: EstadoFactura) => e === "PAGADA_COMPLETA" ? "PAGADA" : e === "ABONO_PARCIAL" ? "ABONO PARC." : "PENDIENTE";
+
+    // Helper: estado cell colors
+    const getEstadoCellStyle = (prioridad: Prioridad, estado: EstadoFactura) => {
+      if (estado === "ABONO_PARCIAL") return { fillColor: [230, 240, 255] as [number, number, number], textColor: [0, 60, 160] as [number, number, number] };
+      if (estado === "PAGADA_COMPLETA") return { fillColor: [235, 248, 235] as [number, number, number], textColor: [0, 120, 0] as [number, number, number] };
+      const map: Record<Prioridad, { fillColor: [number, number, number]; textColor: [number, number, number] }> = {
+        CRITICO: { fillColor: [255, 235, 235], textColor: [192, 0, 0] },
+        URGENTE: { fillColor: [255, 243, 230], textColor: [180, 80, 0] },
+        PROXIMO: { fillColor: [255, 252, 230], textColor: [160, 120, 0] },
+        AL_DIA: { fillColor: [235, 248, 235], textColor: [0, 120, 0] },
+      };
+      return map[prioridad];
+    };
 
     // ========== PAGE 1 — Cover ==========
-    doc.setFillColor(30, 58, 95);
-    doc.rect(0, 0, pageW, 40, "F");
+    // Header band
+    doc.setFillColor(...headerColor);
+    doc.rect(0, 0, pageW, 32, "F");
     doc.setTextColor(255, 255, 255);
-    doc.setFontSize(20);
+    doc.setFontSize(16);
     doc.setFont("helvetica", "bold");
-    doc.text("INFORME DE CUENTAS POR PAGAR — EXPORCAMBRIT", pageW / 2, 22, { align: "center" });
-    doc.setFontSize(11);
+    doc.text("INFORME DE CUENTAS POR PAGAR — EXPORCAMBRIT", pageW / 2, 14, { align: "center" });
+    doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
     const subtitle = provNames.length > 3
       ? `${provNames.length} proveedores seleccionados — Generado: ${today}`
       : `${provNames.join(", ")} — Generado: ${today}`;
-    doc.text(subtitle, pageW / 2, 33, { align: "center", maxWidth: pageW - 40 });
+    doc.text(subtitle, pageW / 2, 24, { align: "center", maxWidth: contentW });
 
     // KPIs
-    doc.setTextColor(0, 0, 0);
     const vencidoCritico = filtered.filter((f) => f.prioridad === "CRITICO").reduce((s, f) => s + f.saldo_real_pendiente, 0);
     const conAbono = filtered.filter((f) => f.estado === "ABONO_PARCIAL").reduce((s, f) => s + f.total_abonado, 0);
     const nProveedores = byProvider.size;
-
     const kpis = [
       { label: "Total Pendiente", value: formatUSD(totalPendiente) },
       { label: "Vencido Crítico", value: formatUSD(vencidoCritico) },
       { label: "Con Abono", value: formatUSD(conAbono) },
       { label: "N° Proveedores", value: String(nProveedores) },
     ];
-    const kpiW = (pageW - margin * 2 - 15) / 4;
+    const kpiW = (contentW - 9) / 4;
     kpis.forEach((k, i) => {
-      const x = margin + i * (kpiW + 5);
+      const x = margin + i * (kpiW + 3);
       doc.setFillColor(240, 243, 248);
-      doc.roundedRect(x, 48, kpiW, 22, 3, 3, "F");
-      doc.setFontSize(8);
+      doc.roundedRect(x, 38, kpiW, 18, 2, 2, "F");
+      doc.setFontSize(7);
       doc.setFont("helvetica", "normal");
       doc.setTextColor(100, 100, 100);
-      doc.text(k.label.toUpperCase(), x + kpiW / 2, 56, { align: "center" });
-      doc.setFontSize(14);
+      doc.text(k.label.toUpperCase(), x + kpiW / 2, 44, { align: "center" });
+      doc.setFontSize(11);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(30, 58, 95);
-      doc.text(k.value, x + kpiW / 2, 65, { align: "center" });
+      doc.text(k.value, x + kpiW / 2, 52, { align: "center" });
     });
 
-    // Chart 1 — Horizontal bars: saldo pendiente por proveedor
-    const chartW = 380;
-    const chartH = 250;
-
+    // Charts side by side
+    let chartsEndY = 60;
     try {
+      const chartAreaW = contentW;
+      const chartH = 65;
+
+      // Chart 1 — Horizontal bars
       const canvas1 = document.createElement("canvas");
-      canvas1.width = chartW * 2;
-      canvas1.height = chartH * 2;
+      canvas1.width = 600;
+      canvas1.height = 500;
       const ctx1 = canvas1.getContext("2d")!;
-      const barData = providerOrder.slice(0, 15).map(([name, rows]) => ({
-        name: name.length > 30 ? name.substring(0, 28) + "…" : name,
+      const barData = providerOrder.slice(0, 10).map(([name, rows]) => ({
+        name: name.length > 25 ? name.substring(0, 23) + "…" : name,
         value: rows.reduce((t, r) => t + r.saldo_real_pendiente, 0),
       }));
-
       const chart1 = new Chart(ctx1, {
         type: "bar",
         data: {
           labels: barData.map((d) => d.name),
-          datasets: [{
-            data: barData.map((d) => d.value),
-            backgroundColor: "#1e3a5f",
-            borderRadius: 4,
-          }],
+          datasets: [{ data: barData.map((d) => d.value), backgroundColor: "#1e3a5f", borderRadius: 3 }],
         },
         options: {
           indexAxis: "y",
@@ -227,106 +241,149 @@ export default function SaldoFacturasPage() {
           animation: false,
           plugins: { legend: { display: false }, tooltip: { enabled: false } },
           scales: {
-            x: { ticks: { callback: (v) => "$" + Number(v).toLocaleString() } },
-            y: { ticks: { font: { size: 11 } } },
+            x: { ticks: { callback: (v) => "$" + Number(v).toLocaleString(), font: { size: 9 } } },
+            y: { ticks: { font: { size: 9 } } },
           },
         },
       });
       chart1.draw();
-
       const img1 = canvas1.toDataURL("image/png");
-      const chart1W = (pageW - margin * 2) * 0.58;
-      const chart1H = 100;
-      doc.addImage(img1, "PNG", margin, 76, chart1W, chart1H);
+      const leftChartW = chartAreaW * 0.58;
+      doc.addImage(img1, "PNG", margin, 60, leftChartW, chartH);
       chart1.destroy();
 
-      // Chart 2 — Pie: distribution by priority
+      // Chart 2 — Pie
       const canvas2 = document.createElement("canvas");
       canvas2.width = 400;
       canvas2.height = 400;
       const ctx2 = canvas2.getContext("2d")!;
-
-      const prioData: { label: string; value: number; color: string }[] = [
+      const prioData = [
         { label: "CRÍTICO", value: filtered.filter((f) => f.prioridad === "CRITICO").length, color: "#dc2626" },
         { label: "URGENTE", value: filtered.filter((f) => f.prioridad === "URGENTE").length, color: "#f97316" },
         { label: "PRÓXIMO", value: filtered.filter((f) => f.prioridad === "PROXIMO").length, color: "#eab308" },
         { label: "AL DÍA", value: filtered.filter((f) => f.prioridad === "AL_DIA").length, color: "#16a34a" },
       ].filter((d) => d.value > 0);
-
       const chart2 = new Chart(ctx2, {
         type: "pie",
         data: {
           labels: prioData.map((d) => d.label),
-          datasets: [{
-            data: prioData.map((d) => d.value),
-            backgroundColor: prioData.map((d) => d.color),
-          }],
+          datasets: [{ data: prioData.map((d) => d.value), backgroundColor: prioData.map((d) => d.color) }],
         },
         options: {
           responsive: false,
           animation: false,
-          plugins: {
-            legend: { position: "right", labels: { font: { size: 13 } } },
-          },
+          plugins: { legend: { position: "right", labels: { font: { size: 11 } } } },
         },
       });
       chart2.draw();
-
       const img2 = canvas2.toDataURL("image/png");
-      const pieX = margin + chart1W + 10;
-      const pieW = pageW - margin - pieX;
-      doc.addImage(img2, "PNG", pieX, 76, pieW, pieW * 0.85);
+      const pieX = margin + leftChartW + 5;
+      const pieW = chartAreaW - leftChartW - 5;
+      doc.addImage(img2, "PNG", pieX, 60, pieW, chartH);
       chart2.destroy();
+
+      chartsEndY = 60 + chartH + 4;
     } catch {
-      // Charts failed, continue without them
+      chartsEndY = 60;
     }
 
-    // ========== DETAIL PAGES — grouped by provider ==========
-    const headerColor: [number, number, number] = [30, 58, 95];
-
-    providerOrder.forEach(([provName, rows]) => {
-      doc.addPage("landscape");
-      const provSaldo = rows.reduce((t, r) => t + r.saldo_real_pendiente, 0);
-
-      // Provider header
-      doc.setFillColor(...headerColor);
-      doc.rect(margin, margin, pageW - margin * 2, 10, "F");
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(10);
+    // Top 5 critical invoices
+    const top5 = [...filtered].sort((a, b) => b.dias_vencidos - a.dias_vencidos).slice(0, 5);
+    if (top5.length > 0) {
+      doc.setFontSize(9);
       doc.setFont("helvetica", "bold");
-      doc.text(`PROVEEDOR: ${provName}  |  ${rows.length} facturas  |  Saldo total: ${formatUSD(provSaldo)}`, margin + 4, margin + 7);
+      doc.setTextColor(30, 58, 95);
+      doc.text("TOP 5 FACTURAS CRÍTICAS", margin, chartsEndY + 4);
 
-      // Table
       autoTable(doc, {
-        startY: margin + 14,
-        head: [["Factura", "Vencimiento", "Días Venc.", "Monto Original", "Abonado", "Saldo Real", "Estado"]],
+        startY: chartsEndY + 6,
+        head: [["Proveedor", "Factura", "Días Venc.", "Saldo Real", "Estado"]],
+        body: top5.map((r) => [
+          r.proveedor.length > 30 ? r.proveedor.substring(0, 28) + "…" : r.proveedor,
+          r.numero_factura,
+          String(r.dias_vencidos),
+          formatUSD(r.saldo_real_pendiente),
+          estadoLabel(r.estado),
+        ]),
+        headStyles: { fillColor: headerColor, textColor: [255, 255, 255], fontSize: 8, fontStyle: "bold" },
+        styles: { fontSize: 8, cellPadding: 2 },
+        margin: { left: margin, right: margin },
+        didParseCell: (data) => {
+          if (data.section === "body" && data.column.index === 4) {
+            const row = top5[data.row.index];
+            if (row) {
+              const style = getEstadoCellStyle(row.prioridad, row.estado);
+              data.cell.styles.fillColor = style.fillColor;
+              data.cell.styles.textColor = style.textColor;
+            }
+          }
+        },
+      });
+    }
+
+    // ========== DETAIL PAGES — grouped by provider, compact ==========
+    let currentY = 0;
+    const needNewDetailPage = true;
+
+    providerOrder.forEach(([provName, rows], idx) => {
+      const provSaldo = rows.reduce((t, r) => t + r.saldo_real_pendiente, 0);
+      const estimatedBlockH = 10 + rows.length * 6 + 8;
+
+      // First provider block starts on a new page; subsequent ones continue if space
+      if (idx === 0 || currentY + Math.min(estimatedBlockH, 40) > pageH - 20) {
+        doc.addPage();
+        currentY = margin;
+      }
+
+      // Provider header bar
+      doc.setFillColor(...headerColor);
+      doc.rect(margin, currentY, contentW, 8, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "bold");
+      doc.text(`${provName}  |  ${rows.length} facturas  |  Saldo: ${formatUSD(provSaldo)}`, margin + 3, currentY + 5.5);
+
+      // Detail table
+      autoTable(doc, {
+        startY: currentY + 9,
+        head: [["Factura", "Vencimiento", "Días Venc.", "Saldo Real", "Estado"]],
         body: rows.map((r) => [
           r.numero_factura,
           formatDate(r.fecha_vencimiento),
           String(r.dias_vencidos),
-          formatUSD(r.monto_original),
-          formatUSD(r.total_abonado),
           formatUSD(r.saldo_real_pendiente),
-          r.estado.replace(/_/g, " "),
+          estadoLabel(r.estado),
         ]),
-        foot: [["", "", "", "", "", formatUSD(provSaldo), ""]],
-        headStyles: { fillColor: headerColor, textColor: [255, 255, 255], fontSize: 8, fontStyle: "bold" },
-        footStyles: { fillColor: [240, 243, 248], textColor: headerColor, fontStyle: "bold", fontSize: 9 },
-        styles: { fontSize: 8, cellPadding: 2 },
+        foot: [["", "", "", formatUSD(provSaldo), ""]],
+        headStyles: { fillColor: headerColor, textColor: [255, 255, 255], fontSize: 7, fontStyle: "bold" },
+        footStyles: { fillColor: [240, 243, 248], textColor: headerColor, fontStyle: "bold", fontSize: 8 },
+        styles: { fontSize: 7, cellPadding: 1.5 },
         alternateRowStyles: { fillColor: [248, 249, 250] },
         margin: { left: margin, right: margin },
         showFoot: "lastPage",
+        didParseCell: (data) => {
+          if (data.section === "body" && data.column.index === 4) {
+            const row = rows[data.row.index];
+            if (row) {
+              const style = getEstadoCellStyle(row.prioridad, row.estado);
+              data.cell.styles.fillColor = style.fillColor;
+              data.cell.styles.textColor = style.textColor;
+            }
+          }
+        },
       });
+
+      currentY = (doc as any).lastAutoTable.finalY + 6;
     });
 
     // ========== LAST PAGE — Executive summary ==========
-    doc.addPage("landscape");
+    doc.addPage();
     doc.setFillColor(...headerColor);
-    doc.rect(0, 0, pageW, 18, "F");
+    doc.rect(0, 0, pageW, 14, "F");
     doc.setTextColor(255, 255, 255);
-    doc.setFontSize(14);
+    doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
-    doc.text("RESUMEN EJECUTIVO", pageW / 2, 12, { align: "center" });
+    doc.text("RESUMEN EJECUTIVO", pageW / 2, 10, { align: "center" });
 
     const summaryRows = providerOrder.map(([name, rows]) => {
       const montoOrig = rows.reduce((t, r) => t + r.monto_original, 0);
@@ -342,39 +399,31 @@ export default function SaldoFacturasPage() {
     const totalPct = totalOrig > 0 ? (totalAb / totalOrig) * 100 : 0;
 
     autoTable(doc, {
-      startY: 24,
+      startY: 18,
       head: [["Proveedor", "N° Facturas", "Monto Original", "Total Abonado", "Saldo Pendiente", "% Pagado"]],
       body: summaryRows,
       foot: [["TOTAL GENERAL", String(filtered.length), formatUSD(totalOrig), formatUSD(totalAb), formatUSD(totalPend), totalPct.toFixed(1) + "%"]],
-      headStyles: { fillColor: headerColor, textColor: [255, 255, 255], fontSize: 9, fontStyle: "bold" },
-      footStyles: { fillColor: headerColor, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 9 },
-      styles: { fontSize: 8, cellPadding: 2.5 },
+      headStyles: { fillColor: headerColor, textColor: [255, 255, 255], fontSize: 8, fontStyle: "bold" },
+      footStyles: { fillColor: headerColor, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8 },
+      styles: { fontSize: 7, cellPadding: 2 },
       alternateRowStyles: { fillColor: [248, 249, 250] },
       margin: { left: margin, right: margin },
       showFoot: "lastPage",
     });
 
-    // Page numbers
+    // Page numbers on all pages
     const totalPages = doc.getNumberOfPages();
     for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i);
-      doc.setFontSize(8);
+      doc.setFontSize(7);
       doc.setTextColor(130, 130, 130);
       doc.setFont("helvetica", "normal");
-      doc.text(`Pág. ${i} de ${totalPages}`, pageW - margin, pageH - 8, { align: "right" });
+      doc.text(`Pág. ${i} de ${totalPages}`, pageW - margin, pageH - 6, { align: "right" });
     }
 
-    // File name
+    // Save
     const dateStr = format(new Date(), "yyyy-MM-dd");
-    let fileName: string;
-    if (selectedProveedores.length === 0 || selectedProveedores.length > 2) {
-      fileName = `informe_cxp_multiples_${dateStr}.pdf`;
-    } else {
-      const slug = selectedProveedores.map((p) => p.replace(/\s+/g, "-").substring(0, 20)).join("_");
-      fileName = `informe_cxp_${slug}_${dateStr}.pdf`;
-    }
-
-    doc.save(fileName);
+    doc.save(`informe_cxp_${dateStr}.pdf`);
     toast.success("Informe PDF generado exitosamente");
   }, [filtered, selectedProveedores, totalPendiente]);
 
