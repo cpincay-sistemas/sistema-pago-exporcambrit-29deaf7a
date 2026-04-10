@@ -148,6 +148,7 @@ export default function NuevaFacturaDialog({ open, onOpenChange }: Props) {
         observaciones: observaciones.trim(),
         periodo: periodo.trim(),
         dias_credito: parseInt(diasCredito) || 0,
+        origen: 'MANUAL',
       }]);
 
       toast.success(modoNuevo ? "Proveedor creado y factura registrada" : "Factura registrada exitosamente");

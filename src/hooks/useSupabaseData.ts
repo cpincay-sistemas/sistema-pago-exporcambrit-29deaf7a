@@ -67,6 +67,28 @@ export function useAddFacturas() {
   });
 }
 
+export function useUpdateFactura() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...data }: { id: string; [key: string]: any }) => {
+      const { error } = await supabase.from("facturas").update(data as any).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["facturas"] }); },
+  });
+}
+
+export function useDeleteFactura() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("facturas").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["facturas"] }); },
+  });
+}
+
 // ============ PROGRAMACIONES ============
 
 export function useProgramaciones() {

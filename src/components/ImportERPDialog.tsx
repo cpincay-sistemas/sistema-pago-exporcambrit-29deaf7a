@@ -317,6 +317,7 @@ export default function ImportERPDialog({ open, onOpenChange }: { open: boolean;
         doc_interno: r.doc_interno || undefined,
         periodo: r.periodo || undefined,
         dias_credito: r.dias_credito || 0,
+        origen: 'ERP',
         observaciones: r.observaciones
           ? `${r.observaciones} | Importado por ${user?.email || "sistema"} el ${new Date().toLocaleString("es-EC")}`
           : `Importado por ${user?.email || "sistema"} el ${new Date().toLocaleString("es-EC")}`,
