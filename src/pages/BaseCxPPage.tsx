@@ -1,11 +1,11 @@
 import { useState, useMemo } from "react";
-import { useFacturas, useHistorico } from "@/hooks/useSupabaseData";
+import { useFacturas, useHistorico, useDeleteFactura } from "@/hooks/useSupabaseData";
 import { PrioridadBadge } from "@/components/PrioridadBadge";
 import { formatUSD, formatDate, calcularDiasVencidos, calcularPrioridad } from "@/lib/business-rules";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Search, Download, Upload, ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { Search, Download, Upload, ChevronLeft, ChevronRight, Plus, Pencil, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/hooks/useAuth";
@@ -13,12 +13,24 @@ import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import ImportERPDialog from "@/components/ImportERPDialog";
 import NuevaFacturaDialog from "@/components/NuevaFacturaDialog";
+import EditFacturaDialog from "@/components/EditFacturaDialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const PAGE_SIZE = 25;
 
 export default function BaseCxPPage() {
   const { data: facturas = [] } = useFacturas();
   const { data: historico = [] } = useHistorico();
+  const deleteFactura = useDeleteFactura();
   const { canWrite } = useAuth();
   const [search, setSearch] = useState("");
   const [prioridadFilter, setPrioridadFilter] = useState<string>("ALL");
@@ -28,6 +40,8 @@ export default function BaseCxPPage() {
   const [page, setPage] = useState(0);
   const [importOpen, setImportOpen] = useState(false);
   const [nuevaFacturaOpen, setNuevaFacturaOpen] = useState(false);
+  const [editFactura, setEditFactura] = useState<any>(null);
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
 
   const getReal = (nf: string, codigoProv: string) => {
     const f = facturas.find((x) => x.numero_factura === nf && x.codigo_proveedor === codigoProv);
@@ -60,7 +74,6 @@ export default function BaseCxPPage() {
   const filtered = useMemo(() => {
     return enriched
       .filter((f) => {
-        // Hide zero-saldo invoices unless toggle is on
         if (!showPagadas) {
           const saldoReal = getReal(f.numero_factura, f.codigo_proveedor);
           if (saldoReal <= 0) return false;
@@ -98,6 +111,17 @@ export default function BaseCxPPage() {
     XLSX.utils.book_append_sheet(wb, ws, "CxP");
     XLSX.writeFile(wb, `CxP_${new Date().toISOString().split("T")[0]}.xlsx`);
     toast.success("Archivo exportado");
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await deleteFactura.mutateAsync(deleteTarget.id);
+      toast.success("Factura eliminada");
+    } catch (err: any) {
+      toast.error(err.message || "Error al eliminar");
+    }
+    setDeleteTarget(null);
   };
 
   return (
@@ -164,7 +188,7 @@ export default function BaseCxPPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-muted/50">
-                {["Proveedor", "Factura", "Motivo", "Emisión", "Vencimiento", "Días Venc.", "Saldo Original", "Saldo Real", "Prioridad"].map((h) => (
+                {["Proveedor", "Factura", "Motivo", "Emisión", "Vencimiento", "Días Venc.", "Saldo Original", "Saldo Real", "Prioridad", "Acciones"].map((h) => (
                   <th key={h} className="text-left px-4 py-2.5 text-xs uppercase tracking-wider text-muted-foreground font-medium whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -172,10 +196,12 @@ export default function BaseCxPPage() {
             <tbody>
               {paginated.map((f) => {
                 const saldo = Number(f.saldo_total);
+                const origen = (f as any).origen || "ERP";
+                const isManual = origen === "MANUAL";
                 const rowClass = saldo === 0
-                  ? "border-b last:border-0 bg-gray-100 text-gray-400"
+                  ? "border-b last:border-0 bg-muted/40 text-muted-foreground"
                   : saldo < 0
-                    ? "border-b last:border-0 bg-blue-50"
+                    ? "border-b last:border-0 bg-accent/30"
                     : "border-b last:border-0 hover:bg-muted/30 transition-colors duration-150";
                 return (
                   <tr key={f.id} className={rowClass}>
@@ -187,16 +213,35 @@ export default function BaseCxPPage() {
                     <td className="px-4 py-3 tabular-nums text-right font-semibold">{f.dias_vencidos}</td>
                     <td className="px-4 py-3 tabular-nums text-right">
                       <span className="mr-2">{formatUSD(saldo)}</span>
-                      {saldo === 0 && <Badge variant="secondary" className="bg-gray-300 text-gray-700 text-[10px]">PAGADA</Badge>}
-                      {saldo < 0 && <Badge variant="secondary" className="bg-blue-100 text-blue-700 text-[10px]">CRÉDITO A FAVOR</Badge>}
+                      {saldo === 0 && <Badge variant="secondary" className="text-[10px]">PAGADA</Badge>}
+                      {saldo < 0 && <Badge variant="secondary" className="bg-accent text-accent-foreground text-[10px]">CRÉDITO A FAVOR</Badge>}
                     </td>
                     <td className="px-4 py-3 tabular-nums text-right font-semibold">{formatUSD(getReal(f.numero_factura, f.codigo_proveedor))}</td>
                     <td className="px-4 py-3"><PrioridadBadge prioridad={f.prioridad} /></td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1.5">
+                        <Badge variant={isManual ? "default" : "secondary"} className="text-[10px] px-1.5 py-0">
+                          {origen}
+                        </Badge>
+                        {canWrite() && (
+                          <>
+                            {isManual && (
+                              <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => setEditFactura(f)} title="Editar">
+                                <Pencil size={14} />
+                              </Button>
+                            )}
+                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive" onClick={() => setDeleteTarget(f)} title="Eliminar">
+                              <Trash2 size={14} />
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 );
               })}
               {paginated.length === 0 && (
-                <tr><td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">No hay facturas registradas</td></tr>
+                <tr><td colSpan={10} className="px-4 py-8 text-center text-muted-foreground">No hay facturas registradas</td></tr>
               )}
             </tbody>
           </table>
@@ -211,8 +256,25 @@ export default function BaseCxPPage() {
           </div>
         )}
       </div>
+
       <ImportERPDialog open={importOpen} onOpenChange={setImportOpen} />
       <NuevaFacturaDialog open={nuevaFacturaOpen} onOpenChange={setNuevaFacturaOpen} />
+      <EditFacturaDialog open={!!editFactura} onOpenChange={(v) => { if (!v) setEditFactura(null); }} factura={editFactura} />
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(v) => { if (!v) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar factura?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se eliminará la factura <strong>{deleteTarget?.numero_factura}</strong> de <strong>{deleteTarget?.razon_social}</strong>. Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Eliminar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
