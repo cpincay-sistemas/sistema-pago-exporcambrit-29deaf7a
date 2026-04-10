@@ -26,6 +26,7 @@ export type Database = {
           motivo: string
           numero_factura: string
           observaciones: string
+          origen: string
           periodo: string
           razon_social: string
           saldo_total: number
@@ -42,6 +43,7 @@ export type Database = {
           motivo?: string
           numero_factura: string
           observaciones?: string
+          origen?: string
           periodo?: string
           razon_social: string
           saldo_total?: number
@@ -58,6 +60,7 @@ export type Database = {
           motivo?: string
           numero_factura?: string
           observaciones?: string
+          origen?: string
           periodo?: string
           razon_social?: string
           saldo_total?: number

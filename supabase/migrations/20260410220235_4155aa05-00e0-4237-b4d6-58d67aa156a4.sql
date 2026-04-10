@@ -1,0 +1,1 @@
+ALTER TABLE public.facturas ADD COLUMN origen text NOT NULL DEFAULT 'ERP';
