@@ -5,7 +5,7 @@ import { formatUSD, formatDate, calcularDiasVencidos, calcularPrioridad } from "
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Search, Download, Upload, ChevronLeft, ChevronRight, Plus, Pencil, Trash2 } from "lucide-react";
+import { Search, Download, Upload, ChevronLeft, ChevronRight, Plus, Pencil, Trash2, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/hooks/useAuth";
@@ -14,6 +14,7 @@ import * as XLSX from "xlsx";
 import ImportERPDialog from "@/components/ImportERPDialog";
 import NuevaFacturaDialog from "@/components/NuevaFacturaDialog";
 import EditFacturaDialog from "@/components/EditFacturaDialog";
+import ConvertirProformaDialog from "@/components/ConvertirProformaDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,6 +43,7 @@ export default function BaseCxPPage() {
   const [nuevaFacturaOpen, setNuevaFacturaOpen] = useState(false);
   const [editFactura, setEditFactura] = useState<any>(null);
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [convertTarget, setConvertTarget] = useState<any>(null);
 
   const getReal = (nf: string, codigoProv: string) => {
     const f = facturas.find((x) => x.numero_factura === nf && x.codigo_proveedor === codigoProv);
@@ -197,12 +199,23 @@ export default function BaseCxPPage() {
               {paginated.map((f) => {
                 const saldo = Number(f.saldo_total);
                 const origen = (f as any).origen || "ERP";
+                const tipo = (f as any).tipo || "FACTURA";
                 const isManual = origen === "MANUAL";
+                const isProforma = tipo === "PROFORMA";
+                const isConvertida = tipo === "PROFORMA_CONVERTIDA";
                 const rowClass = saldo === 0
                   ? "border-b last:border-0 bg-muted/40 text-muted-foreground"
                   : saldo < 0
                     ? "border-b last:border-0 bg-accent/30"
                     : "border-b last:border-0 hover:bg-muted/30 transition-colors duration-150";
+
+                const getBadge = () => {
+                  if (isConvertida) return <Badge variant="secondary" className="text-[10px] px-1.5 py-0">CONVERTIDA</Badge>;
+                  if (isProforma) return <Badge className="text-[10px] px-1.5 py-0 bg-orange-500 hover:bg-orange-600 text-white border-0">PROFORMA</Badge>;
+                  if (isManual) return <Badge variant="default" className="text-[10px] px-1.5 py-0">MANUAL</Badge>;
+                  return <Badge variant="secondary" className="text-[10px] px-1.5 py-0">ERP</Badge>;
+                };
+
                 return (
                   <tr key={f.id} className={rowClass}>
                     <td className="px-4 py-3 font-medium max-w-[200px] truncate">{f.razon_social}</td>
@@ -220,14 +233,17 @@ export default function BaseCxPPage() {
                     <td className="px-4 py-3"><PrioridadBadge prioridad={f.prioridad} /></td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1.5">
-                        <Badge variant={isManual ? "default" : "secondary"} className="text-[10px] px-1.5 py-0">
-                          {origen}
-                        </Badge>
-                        {canWrite() && (
+                        {getBadge()}
+                        {canWrite() && !isConvertida && (
                           <>
-                            {isManual && (
+                            {(isManual || isProforma) && (
                               <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => setEditFactura(f)} title="Editar">
                                 <Pencil size={14} />
+                              </Button>
+                            )}
+                            {isProforma && (
+                              <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-orange-600 hover:text-orange-700" onClick={() => setConvertTarget(f)} title="Convertir a Factura">
+                                <RefreshCw size={14} />
                               </Button>
                             )}
                             <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive" onClick={() => setDeleteTarget(f)} title="Eliminar">
@@ -260,6 +276,7 @@ export default function BaseCxPPage() {
       <ImportERPDialog open={importOpen} onOpenChange={setImportOpen} />
       <NuevaFacturaDialog open={nuevaFacturaOpen} onOpenChange={setNuevaFacturaOpen} />
       <EditFacturaDialog open={!!editFactura} onOpenChange={(v) => { if (!v) setEditFactura(null); }} factura={editFactura} />
+      <ConvertirProformaDialog open={!!convertTarget} onOpenChange={(v) => { if (!v) setConvertTarget(null); }} proforma={convertTarget} />
 
       <AlertDialog open={!!deleteTarget} onOpenChange={(v) => { if (!v) setDeleteTarget(null); }}>
         <AlertDialogContent>

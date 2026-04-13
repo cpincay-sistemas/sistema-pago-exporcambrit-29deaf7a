@@ -59,6 +59,9 @@ export default function SaldoFacturasPage() {
     return facturas.filter((f) => {
       if (seen.has(f.id)) return false;
       seen.add(f.id);
+      // Exclude proformas from saldo facturas
+      const tipo = (f as any).tipo || "FACTURA";
+      if (tipo === "PROFORMA" || tipo === "PROFORMA_CONVERTIDA") return false;
       return true;
     }).map((f) => {
       const totalAbonado = historico
