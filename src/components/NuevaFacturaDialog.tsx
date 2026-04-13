@@ -30,6 +30,9 @@ export default function NuevaFacturaDialog({ open, onOpenChange }: Props) {
   const [newTipoCuenta, setNewTipoCuenta] = useState("CORRIENTE");
   const [newEmail, setNewEmail] = useState("");
 
+  // Type selector
+  const [tipoDoc, setTipoDoc] = useState<"FACTURA" | "PROFORMA">("FACTURA");
+
   // Invoice fields
   const [numeroFactura, setNumeroFactura] = useState("");
   const [motivo, setMotivo] = useState("");
@@ -55,6 +58,7 @@ export default function NuevaFacturaDialog({ open, onOpenChange }: Props) {
     setProveedorId("");
     setSearchProv("");
     setModoNuevo(false);
+    setTipoDoc("FACTURA");
     setNewRazonSocial("");
     setNewRuc("");
     setNewBanco("");
@@ -149,9 +153,11 @@ export default function NuevaFacturaDialog({ open, onOpenChange }: Props) {
         periodo: periodo.trim(),
         dias_credito: parseInt(diasCredito) || 0,
         origen: 'MANUAL',
+        tipo: tipoDoc,
       }]);
 
-      toast.success(modoNuevo ? "Proveedor creado y factura registrada" : "Factura registrada exitosamente");
+      const label = tipoDoc === "PROFORMA" ? "proforma" : "factura";
+      toast.success(modoNuevo ? `Proveedor creado y ${label} registrada` : `${label.charAt(0).toUpperCase() + label.slice(1)} registrada exitosamente`);
       handleClose(false);
     } catch (err: any) {
       toast.error(err.message || "Error al guardar");
@@ -164,11 +170,26 @@ export default function NuevaFacturaDialog({ open, onOpenChange }: Props) {
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Nueva Factura</DialogTitle>
-          <DialogDescription>Registra una factura manualmente seleccionando o creando un proveedor.</DialogDescription>
+          <DialogTitle>Nuevo Documento</DialogTitle>
+          <DialogDescription>Registra una factura o proforma manualmente.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Type selector */}
+          <div className="space-y-2">
+            <Label className="font-semibold">Tipo de Documento</Label>
+            <div className="flex gap-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="radio" name="tipoDoc" checked={tipoDoc === "FACTURA"} onChange={() => setTipoDoc("FACTURA")} className="accent-primary" />
+                <span className="text-sm">Factura</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="radio" name="tipoDoc" checked={tipoDoc === "PROFORMA"} onChange={() => setTipoDoc("PROFORMA")} className="accent-primary" />
+                <span className="text-sm">Proforma</span>
+              </label>
+            </div>
+          </div>
+
           {/* Provider section */}
           <div className="space-y-2">
             <Label className="font-semibold">Proveedor</Label>
@@ -257,7 +278,7 @@ export default function NuevaFacturaDialog({ open, onOpenChange }: Props) {
             <Label className="font-semibold">Datos de la Factura</Label>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="text-xs">N° Factura *</Label>
+                <Label className="text-xs">{tipoDoc === "PROFORMA" ? "N° Proforma" : "N° Factura"} *</Label>
                 <Input value={numeroFactura} onChange={(e) => setNumeroFactura(e.target.value)} placeholder="001-001-000000001" />
               </div>
               <div>
@@ -303,7 +324,7 @@ export default function NuevaFacturaDialog({ open, onOpenChange }: Props) {
         <DialogFooter>
           <Button variant="outline" onClick={() => handleClose(false)}>Cancelar</Button>
           <Button onClick={handleSave} disabled={saving}>
-            {saving ? "Guardando…" : "Guardar Factura"}
+            {saving ? "Guardando…" : tipoDoc === "PROFORMA" ? "Guardar Proforma" : "Guardar Factura"}
           </Button>
         </DialogFooter>
       </DialogContent>
