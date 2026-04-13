@@ -29,7 +29,9 @@ export type Database = {
           origen: string
           periodo: string
           razon_social: string
+          referencia_proforma_id: string | null
           saldo_total: number
+          tipo: string
           updated_at: string
         }
         Insert: {
@@ -46,7 +48,9 @@ export type Database = {
           origen?: string
           periodo?: string
           razon_social: string
+          referencia_proforma_id?: string | null
           saldo_total?: number
+          tipo?: string
           updated_at?: string
         }
         Update: {
@@ -63,7 +67,9 @@ export type Database = {
           origen?: string
           periodo?: string
           razon_social?: string
+          referencia_proforma_id?: string | null
           saldo_total?: number
+          tipo?: string
           updated_at?: string
         }
         Relationships: [
