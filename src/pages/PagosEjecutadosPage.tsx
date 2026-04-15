@@ -172,7 +172,7 @@ export default function PagosEjecutadosPage() {
     const alreadyArchived = historico.some((h) => h.semana === selectedSemana);
     const duplicateKeys = new Set(
       mergedPagos
-        .filter((p) => historico.some((h) => h.numero_factura === p.numero_factura && h.codigo_proveedor === p.codigo_proveedor))
+        .filter((p) => historico.some((h) => h.numero_factura === p.numero_factura && h.codigo_proveedor === p.codigo_proveedor && h.semana === selectedSemana))
         .map((p) => `${p.codigo_proveedor}|${p.numero_factura}`)
     );
     const duplicates = [...duplicateKeys].map((k) => k.split("|")[1]);
@@ -190,7 +190,7 @@ export default function PagosEjecutadosPage() {
     const mergedPagos = pagos.map((p) => ({ ...p, ...edits[p.id] }));
     const duplicateKeys = new Set(
       mergedPagos
-        .filter((p) => historico.some((h) => h.numero_factura === p.numero_factura && h.codigo_proveedor === p.codigo_proveedor))
+        .filter((p) => historico.some((h) => h.numero_factura === p.numero_factura && h.codigo_proveedor === p.codigo_proveedor && h.semana === selectedSemana))
         .map((p) => `${p.codigo_proveedor}|${p.numero_factura}`)
     );
     const toArchive = mergedPagos.filter((p) => !duplicateKeys.has(`${p.codigo_proveedor}|${p.numero_factura}`));
