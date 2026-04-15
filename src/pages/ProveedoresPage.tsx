@@ -39,8 +39,8 @@ export default function ProveedoresPage() {
         await updateProveedor.mutateAsync({ id: editing.id, ...data });
         toast.success("Proveedor actualizado");
       } else {
-        const codigo = `PROV-${String(proveedores.length + 1).padStart(3, "0")}`;
-        await addProveedor.mutateAsync({ codigo, ...data });
+        const codigoFinal = data.codigo || `PROV-${String(proveedores.length + 1).padStart(3, "0")}`;
+        await addProveedor.mutateAsync({ ...data, codigo: codigoFinal });
         toast.success("Proveedor creado");
       }
       setDialogOpen(false);
@@ -131,6 +131,7 @@ export default function ProveedoresPage() {
 
 function ProveedorForm({ initial, onSave, onCancel }: { initial: any; onSave: (d: any) => void; onCancel: () => void }) {
   const [form, setForm] = useState({
+    codigo: initial?.codigo || "",
     ruc_ci: initial?.ruc_ci || "",
     razon_social: initial?.razon_social || "",
     banco: initial?.banco || "",
@@ -145,8 +146,9 @@ function ProveedorForm({ initial, onSave, onCancel }: { initial: any; onSave: (d
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
+        <div><Label>Código</Label><Input value={form.codigo} onChange={(e) => update("codigo", e.target.value)} placeholder="PROV-001" /></div>
         <div><Label>RUC / CI</Label><Input value={form.ruc_ci} onChange={(e) => update("ruc_ci", e.target.value)} placeholder="0990000000001" /></div>
-        <div><Label>Razón Social</Label><Input value={form.razon_social} onChange={(e) => update("razon_social", e.target.value)} /></div>
+        <div className="col-span-2"><Label>Razón Social</Label><Input value={form.razon_social} onChange={(e) => update("razon_social", e.target.value)} /></div>
         <div><Label>Banco</Label>
           <Select value={form.banco} onValueChange={(v) => update("banco", v)}>
             <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
