@@ -322,23 +322,23 @@ export default function ProgramacionPage() {
 
       if (format === "pdf") {
         // FIX 2: jsPDF autoTable paginated A4
-        const doc = new jsPDF({ orientation: "landscape", format: "a4" });
+        const doc = new jsPDF({ orientation: "portrait", format: "a4" });
         const pageWidth = doc.internal.pageSize.getWidth();
 
         // Header
-        doc.setFontSize(16);
+        doc.setFontSize(14);
         doc.setTextColor(30, 58, 95);
-        doc.text("EXPORCAMBRIT", 14, 18);
-        doc.setFontSize(11);
+        doc.text("EXPORCAMBRIT", 14, 16);
+        doc.setFontSize(9);
         doc.setTextColor(100);
-        doc.text(`Programación ${selectedSemana} — ${dateStr}`, 14, 25);
+        doc.text(`Programación ${selectedSemana} — ${dateStr}`, 14, 23);
 
-        // Main table
+        // Main table — portrait A4, columnas ajustadas
         autoTable(doc, {
-          startY: 32,
-          head: [["Proveedor", "Factura", "Vencimiento", "Prioridad", "Estado", "Forma Pago", "Saldo Real", "Monto a Pagar", "Responsable"]],
+          startY: 28,
+          head: [["Proveedor", "Factura", "Vencim.", "Prior.", "Estado", "Forma Pago", "Saldo Real", "Monto Pagar", "Responsable"]],
           body: exportLineas.map((l) => [
-            l.razon_social,
+            l.razon_social?.length > 22 ? l.razon_social.substring(0, 22) + "…" : l.razon_social,
             l.numero_factura,
             formatDate(l.fecha_vencimiento),
             l.prioridad,
@@ -346,17 +346,27 @@ export default function ProgramacionPage() {
             l.forma_pago,
             formatUSD(Number(l.saldo_real_pendiente)),
             formatUSD(Number(l.monto_a_pagar)),
-            l.responsable_pago,
+            l.responsable_pago?.length > 16 ? l.responsable_pago.substring(0, 16) + "…" : l.responsable_pago,
           ]),
-          headStyles: { fillColor: [30, 58, 95], fontSize: 8 },
-          bodyStyles: { fontSize: 7.5 },
+          headStyles: { fillColor: [30, 58, 95], fontSize: 7, halign: "center" },
+          bodyStyles: { fontSize: 7 },
           alternateRowStyles: { fillColor: [245, 245, 245] },
-          styles: { cellPadding: 3 },
+          styles: { cellPadding: 2, overflow: "linebreak" },
+          columnStyles: {
+            0: { cellWidth: 42 },  // Proveedor
+            1: { cellWidth: 38 },  // Factura
+            2: { cellWidth: 22 },  // Vencimiento
+            3: { cellWidth: 18 },  // Prioridad
+            4: { cellWidth: 22 },  // Estado
+            5: { cellWidth: 24 },  // Forma Pago
+            6: { cellWidth: 24, halign: "right" },  // Saldo Real
+            7: { cellWidth: 24, halign: "right" },  // Monto Pagar
+            8: { cellWidth: 30 },  // Responsable
+          },
           didDrawPage: (data: any) => {
-            // Page number footer
-            doc.setFontSize(8);
+            doc.setFontSize(7);
             doc.setTextColor(150);
-            doc.text(`Página ${doc.getCurrentPageInfo().pageNumber}`, pageWidth - 30, doc.internal.pageSize.getHeight() - 10);
+            doc.text(`Página ${doc.getCurrentPageInfo().pageNumber}`, pageWidth - 20, doc.internal.pageSize.getHeight() - 8);
           },
         });
 
