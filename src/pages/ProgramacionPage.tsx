@@ -37,7 +37,7 @@ export default function ProgramacionPage() {
   const { data: proveedores = [] } = useProveedores();
   const { data: facturas = [] } = useFacturas();
   const { data: historico = [] } = useHistorico();
-  const { data: allLineas = [] } = useAllLineasProgramacion();
+  const { data: allLineas = [], isLoading: allLineasLoading } = useAllLineasProgramacion();
   const { data: programaciones = [] } = useProgramaciones();
   const { canWrite, canApprove, profile } = useAuth();
 
@@ -100,10 +100,14 @@ export default function ProgramacionPage() {
   const facturasConSaldo = useMemo(() => {
     if (!selectedProveedor) return [];
 
-    // Keys programadas en CUALQUIER semana no archivada (semana activa o pendientes de archivar)
-    // Excluye facturas que ya están aprobadas/pendientes en otras semanas activas
+    // Keys programadas en CUALQUIER semana con estado PENDIENTE o APROBADO
+    // RECHAZADO no bloquea (el pago fue rechazado, puede reprogramarse)
     const programmedAnyWeek = new Set(
       allLineas
+        .filter((l) => {
+          const estado = (l as any).estado_aprobacion;
+          return !estado || estado === "PENDIENTE" || estado === "APROBADO";
+        })
         .map((l) => `${l.codigo_proveedor}|${l.numero_factura}`)
     );
 
@@ -500,7 +504,7 @@ export default function ProgramacionPage() {
           {canWrite() && (
             <>
               <Button variant="outline" size="sm" onClick={() => setShowLimiteDialog(true)}>Límite: {formatUSD(limite)}</Button>
-              <Button size="sm" onClick={() => setShowAddDialog(true)}><Plus size={16} /> Agregar Línea</Button>
+              <Button size="sm" onClick={() => { if (!allLineasLoading) setShowAddDialog(true); else toast.warning("Cargando datos, intente nuevamente"); }}><Plus size={16} /> Agregar Línea</Button>
             </>
           )}
         </div>
