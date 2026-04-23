@@ -100,10 +100,10 @@ export default function ProgramacionPage() {
   const facturasConSaldo = useMemo(() => {
     if (!selectedProveedor) return [];
 
-    // Keys programadas en la semana activa solamente
-    const programmedThisWeek = new Set(
+    // Keys programadas en CUALQUIER semana no archivada (semana activa o pendientes de archivar)
+    // Excluye facturas que ya están aprobadas/pendientes en otras semanas activas
+    const programmedAnyWeek = new Set(
       allLineas
-        .filter((l) => programacion && l.semana_id === programacion.id)
         .map((l) => `${l.codigo_proveedor}|${l.numero_factura}`)
     );
 
@@ -123,7 +123,7 @@ export default function ProgramacionPage() {
       })
       .filter((f) => {
         // Excluir si ya programada en esta semana
-        if (programmedThisWeek.has(f._key)) return false;
+        if (programmedAnyWeek.has(f._key)) return false;
         // Excluir si saldo_real <= 0 (totalmente pagada)
         if (f.saldoReal <= 0) return false;
         return true;
