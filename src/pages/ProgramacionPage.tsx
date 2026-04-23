@@ -179,8 +179,8 @@ export default function ProgramacionPage() {
         const monto = getMonto(f);
         if (saldo === 0) { toast.warning(`Factura ${f.numero_factura} sin saldo pendiente, omitida`); continue; }
         if (saldo > 0 && (monto <= 0 || monto > saldo)) { toast.error(`Factura ${f.numero_factura}: monto inválido`); continue; }
-        const existing = lineas.find((l) => l.numero_factura === f.numero_factura);
-        if (existing) { toast.warning(`Factura ${f.numero_factura} ya programada, omitida`); continue; }
+        const existing = lineas.find((l) => l.numero_factura === f.numero_factura && l.codigo_proveedor === selectedProveedor.codigo);
+        if (existing) { toast.warning(`Factura ${f.numero_factura} ya programada esta semana, omitida`); continue; }
         if (totalAprobado + monto > limite) toast.warning(`${f.numero_factura}: monto excede el límite`);
 
         const diasVencidos = calcularDiasVencidos(f.fecha_vencimiento);
