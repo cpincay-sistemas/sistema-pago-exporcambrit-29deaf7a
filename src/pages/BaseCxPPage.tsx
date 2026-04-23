@@ -45,19 +45,29 @@ export default function BaseCxPPage() {
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
   const [convertTarget, setConvertTarget] = useState<any>(null);
 
+  // P1+P2 FIX: Pre-compute abonos map once in O(N) — avoids O(N*M) per render
+  const abonosMap = useMemo(() => {
+    const map = new Map<string, number>();
+    historico.forEach((h) => {
+      const key = `${h.codigo_proveedor}|${h.numero_factura}`;
+      map.set(key, (map.get(key) || 0) + Number(h.monto_pagado));
+    });
+    return map;
+  }, [historico]);
+
   const getReal = (nf: string, codigoProv: string) => {
     const f = facturas.find((x) => x.numero_factura === nf && x.codigo_proveedor === codigoProv);
     if (!f) return 0;
-    const abonado = historico.filter((h) => h.numero_factura === nf && h.codigo_proveedor === codigoProv).reduce((s, h) => s + Number(h.monto_pagado), 0);
-    return Number(f.saldo_total) - abonado;
+    return Number(f.saldo_total) - (abonosMap.get(`${codigoProv}|${nf}`) || 0);
   };
 
   const enriched = useMemo(() => {
     return facturas.map((f) => {
       const diasVencidos = calcularDiasVencidos(f.fecha_vencimiento);
-      return { ...f, dias_vencidos: diasVencidos, prioridad: calcularPrioridad(diasVencidos) };
+      const saldo_real = Number(f.saldo_total) - (abonosMap.get(`${f.codigo_proveedor}|${f.numero_factura}`) || 0);
+      return { ...f, dias_vencidos: diasVencidos, prioridad: calcularPrioridad(diasVencidos), saldo_real };
     });
-  }, [facturas]);
+  }, [facturas, abonosMap]);
 
   const years = useMemo(() => {
     const set = new Set<string>();
@@ -77,8 +87,7 @@ export default function BaseCxPPage() {
     return enriched
       .filter((f) => {
         if (!showPagadas) {
-          const saldoReal = getReal(f.numero_factura, f.codigo_proveedor);
-          if (saldoReal <= 0) return false;
+          if (f.saldo_real <= 0) return false;
         }
         if (prioridadFilter !== "ALL" && f.prioridad !== prioridadFilter) return false;
         if (yearFilter !== "ALL") {
@@ -96,11 +105,11 @@ export default function BaseCxPPage() {
         return true;
       })
       .sort((a, b) => b.dias_vencidos - a.dias_vencidos);
-  }, [enriched, search, prioridadFilter, yearFilter, monthFilter, showPagadas, historico]);
+  }, [enriched, search, prioridadFilter, yearFilter, monthFilter, showPagadas]);
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
-  const totalSaldo = filtered.reduce((s, f) => s + getReal(f.numero_factura, f.codigo_proveedor), 0);
+  const totalSaldo = filtered.reduce((s, f) => s + f.saldo_real, 0);
 
   const handleExport = () => {
     const ws = XLSX.utils.json_to_sheet(filtered.map((f) => ({

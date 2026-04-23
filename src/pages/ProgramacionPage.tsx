@@ -3,6 +3,7 @@ import {
   useProveedores, useFacturas, useHistorico, useProgramaciones,
   useLineasProgramacion, useAllLineasProgramacion, useAddProgramacion, useUpdateProgramacion,
   useAddLineaProgramacion, useUpdateLineaProgramacion, useDeleteLineaProgramacion,
+  useBatchUpdateLineasProgramacion,
 } from "@/hooks/useSupabaseData";
 import { useAuth } from "@/hooks/useAuth";
 import { getCurrentISOWeek, formatUSD, formatDate, calcularDiasVencidos, calcularPrioridad } from "@/lib/business-rules";
@@ -43,6 +44,7 @@ export default function ProgramacionPage() {
   const addProgramacion = useAddProgramacion();
   const updateProgramacion = useUpdateProgramacion();
   const addLineaProgramacion = useAddLineaProgramacion();
+  const batchUpdateLineas = useBatchUpdateLineasProgramacion();
   const updateLineaProgramacion = useUpdateLineaProgramacion();
   const deleteLineaProgramacion = useDeleteLineaProgramacion();
 
@@ -230,9 +232,12 @@ export default function ProgramacionPage() {
   };
   const handleApproveAll = async () => {
     const pendientes = lineas.filter((l) => l.estado_aprobacion === "PENDIENTE");
-    for (const l of pendientes) {
-      await updateLineaProgramacion.mutateAsync({ id: l.id, estado_aprobacion: "APROBADO" });
-    }
+    if (pendientes.length === 0) { toast.warning("No hay líneas pendientes"); return; }
+    // P6 FIX: Single batch UPDATE instead of N sequential requests
+    await batchUpdateLineas.mutateAsync({
+      ids: pendientes.map((l) => l.id),
+      data: { estado_aprobacion: "APROBADO" },
+    });
     if (programacion) {
       await updateProgramacion.mutateAsync({
         id: programacion.id,

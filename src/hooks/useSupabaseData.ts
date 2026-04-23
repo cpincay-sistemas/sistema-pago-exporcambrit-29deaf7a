@@ -159,7 +159,10 @@ export function useAddLineaProgramacion() {
       const { error } = await supabase.from("lineas_programacion").insert(l);
       if (error) throw error;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["lineas_programacion"] }); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["lineas_programacion"] });
+      qc.invalidateQueries({ queryKey: ["lineas_programacion_all"] });
+    },
   });
 }
 
@@ -170,7 +173,10 @@ export function useUpdateLineaProgramacion() {
       const { error } = await supabase.from("lineas_programacion").update(data as any).eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["lineas_programacion"] }); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["lineas_programacion"] });
+      qc.invalidateQueries({ queryKey: ["lineas_programacion_all"] });
+    },
   });
 }
 
@@ -181,7 +187,24 @@ export function useDeleteLineaProgramacion() {
       const { error } = await supabase.from("lineas_programacion").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["lineas_programacion"] }); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["lineas_programacion"] });
+      qc.invalidateQueries({ queryKey: ["lineas_programacion_all"] });
+    },
+  });
+}
+
+export function useBatchUpdateLineasProgramacion() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ ids, data }: { ids: string[]; data: Record<string, any> }) => {
+      const { error } = await supabase.from("lineas_programacion").update(data as any).in("id", ids);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["lineas_programacion"] });
+      qc.invalidateQueries({ queryKey: ["lineas_programacion_all"] });
+    },
   });
 }
 

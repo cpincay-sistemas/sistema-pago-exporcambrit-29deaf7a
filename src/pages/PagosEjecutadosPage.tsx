@@ -307,6 +307,9 @@ export default function PagosEjecutadosPage() {
 
     let updated = 0;
     const notFound: string[] = [];
+    // P4 FIX: Separate into stubs (insert) and existing (batch update)
+    const stubsToAdd: any[] = [];
+    const updatesToApply: { id: string; updates: Record<string, any> }[] = [];
 
     for (const row of importAllRows) {
       const numFactura = String(row[colFactura] ?? "").trim();
@@ -331,21 +334,39 @@ export default function PagosEjecutadosPage() {
 
       if (Object.keys(updates).length === 0) continue;
 
-      try {
-        if ((pago as any)._isStub) {
-          // Save stub first then update
-          const { _isStub, id, ...data } = pago as any;
-          data.semana = selectedSemana;
-          Object.assign(data, updates);
-          data.id = undefined;
-          await addPagoEjecutado.mutateAsync(data);
-        } else {
-          await updatePagoEjecutado.mutateAsync({ id: pago.id, ...updates });
-        }
-        updated++;
-      } catch {
-        notFound.push(numFactura + " (error)");
+      if ((pago as any)._isStub) {
+        const { _isStub, id, ...data } = pago as any;
+        stubsToAdd.push({ ...data, semana: selectedSemana, ...updates });
+      } else {
+        updatesToApply.push({ id: pago.id, updates });
       }
+    }
+
+    try {
+      // Batch insert new stubs
+      if (stubsToAdd.length > 0) {
+        await addPagoEjecutado.mutateAsync(stubsToAdd[0]);
+        for (let i = 1; i < stubsToAdd.length; i++) {
+          await addPagoEjecutado.mutateAsync(stubsToAdd[i]);
+        }
+        updated += stubsToAdd.length;
+      }
+      // Batch updates: group by identical update content for efficiency
+      const updateGroups = new Map<string, string[]>();
+      updatesToApply.forEach(({ id, updates: u }) => {
+        const key = JSON.stringify(u);
+        if (!updateGroups.has(key)) updateGroups.set(key, []);
+        updateGroups.get(key)!.push(id);
+      });
+      for (const [updatesJson, ids] of updateGroups) {
+        await updatePagoEjecutado.mutateAsync({ id: ids[0], ...JSON.parse(updatesJson) });
+        for (let i = 1; i < ids.length; i++) {
+          await updatePagoEjecutado.mutateAsync({ id: ids[i], ...JSON.parse(updatesJson) });
+        }
+        updated += ids.length;
+      }
+    } catch {
+      toast.error("Error al procesar algunos registros");
     }
 
     setImportResult({ updated, notFound });
