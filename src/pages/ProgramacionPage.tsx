@@ -128,8 +128,9 @@ export default function ProgramacionPage() {
       .filter((f) => {
         // Excluir si ya programada en esta semana
         if (programmedAnyWeek.has(f._key)) return false;
-        // Excluir si saldo_real <= 0 (totalmente pagada)
-        if (f.saldoReal <= 0) return false;
+        // Excluir solo si saldo_real == 0 (totalmente pagada)
+        // Permitir notas de crédito (saldo < 0)
+        if (f.saldoReal === 0) return false;
         return true;
       })
       .sort((a, b) => {
