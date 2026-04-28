@@ -13,5 +13,5 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  base: '/sistema-pago-exporcambrit-29deaf7a/',
+  base: '/',
 });
