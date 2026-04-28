@@ -206,7 +206,7 @@ export default function ProgramacionPage() {
           saldo_real_pendiente: saldo,
           monto_a_pagar: monto,
           observaciones: newObs,
-          responsable_pago: newResponsable || profile?.nombre || "",
+          responsable_pago: newResponsable || profile?.full_name || "",
           fecha_programada: newFechaProg,
         });
         added++;
@@ -247,7 +247,7 @@ export default function ProgramacionPage() {
       await updateProgramacion.mutateAsync({
         id: programacion.id,
         estado_semana: "APROBADO",
-        aprobado_por: profile?.nombre || "",
+        aprobado_por: profile?.full_name || "",
         fecha_aprobacion: new Date().toISOString().split("T")[0],
       });
     }
@@ -723,7 +723,7 @@ export default function ProgramacionPage() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-sm font-medium mb-1 block">Responsable</label>
-                <Input value={newResponsable || profile?.nombre || ""} onChange={(e) => setNewResponsable(e.target.value)} />
+                <Input value={newResponsable || profile?.full_name || ""} onChange={(e) => setNewResponsable(e.target.value)} />
               </div>
               <div>
                 <label className="text-sm font-medium mb-1 block">Observaciones</label>

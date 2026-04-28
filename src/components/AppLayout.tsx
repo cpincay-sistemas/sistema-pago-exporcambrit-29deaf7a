@@ -34,8 +34,8 @@ export default function AppLayout() {
     return true;
   });
 
-  const initials = profile?.nombre
-    ? profile.nombre.split(" ").map((n) => n[0]).join("").substring(0, 2).toUpperCase()
+  const initials = profile?.full_name
+    ? profile.full_name.split(" ").map((n) => n[0]).join("").substring(0, 2).toUpperCase()
     : "??";
 
   return (
@@ -103,7 +103,7 @@ export default function AppLayout() {
             <div className="h-8 w-8 rounded bg-primary/10 flex items-center justify-center">
               <span className="text-xs font-medium text-primary">{initials}</span>
             </div>
-            <span className="text-sm font-medium hidden sm:block">{profile?.nombre || "Usuario"}</span>
+            <span className="text-sm font-medium hidden sm:block">{profile?.full_name || "Usuario"}</span>
             <button
               onClick={signOut}
               className="text-muted-foreground hover:text-foreground transition-colors"

@@ -20,7 +20,7 @@ export default function HistoricoPage() {
       .filter((h) => {
         if (!search) return true;
         const q = search.toLowerCase();
-        return h.razon_social.toLowerCase().includes(q) || h.numero_factura.toLowerCase().includes(q) || h.semana.includes(q);
+        return h.razon_social.toLowerCase().includes(q) || h.numero_factura.toLowerCase().includes(q) || (h.semana || "").includes(q);
       })
       .sort((a, b) => (b.fecha_archivo || "").localeCompare(a.fecha_archivo || ""));
   }, [historico, search]);
