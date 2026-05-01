@@ -22,7 +22,7 @@ export default function HistoricoPage() {
         const q = search.toLowerCase();
         return h.razon_social.toLowerCase().includes(q) || h.numero_factura.toLowerCase().includes(q) || (h.semana || "").includes(q);
       })
-      .sort((a, b) => (b.fecha_archivo || "").localeCompare(a.fecha_archivo || ""));
+      .sort((a, b) => (b.semana || "").localeCompare(a.semana || "") || (b.fecha_archivo || "").localeCompare(a.fecha_archivo || ""));
   }, [historico, search]);
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
@@ -33,7 +33,7 @@ export default function HistoricoPage() {
 
   const handleExport = (format: "csv" | "xlsx") => {
     const data = filtered.map((h) => ({
-      Semana: h.semana,
+      Semana: h.semana || "",
       Fecha_Pago: h.fecha_pago,
       Proveedor: h.razon_social,
       Factura: h.numero_factura,
@@ -91,7 +91,7 @@ export default function HistoricoPage() {
             <tbody>
               {paginated.map((h) => (
                 <tr key={h.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
-                  <td className="px-4 py-3 font-medium">{h.semana}</td>
+                  <td className="px-4 py-3 font-medium">{h.semana || "—"}</td>
                   <td className="px-4 py-3 tabular-nums">{formatDate(h.fecha_pago)}</td>
                   <td className="px-4 py-3">{h.razon_social}</td>
                   <td className="px-4 py-3 tabular-nums text-xs">{h.numero_factura}</td>

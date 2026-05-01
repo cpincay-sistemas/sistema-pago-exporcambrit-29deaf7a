@@ -56,7 +56,7 @@ export default function PagosEjecutadosPage() {
 
   const pagos = useMemo(() => {
     return lineasFiltradas.map((l, i) => {
-      const existing = pagosEjecutados.find((p) => p.numero_factura === l.numero_factura && (p as any).semana === selectedSemana);
+      const existing = pagosEjecutados.find((p) => p.numero_factura === l.numero_factura && p.semana === selectedSemana);
       if (existing) return existing;
       return {
         id: `pago-${programacion?.id}-${l.numero_factura}`,
