@@ -26,12 +26,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<{ full_name: string | null; avatar_url: string | null; email: string; activo: boolean } | null>(null);
   const [role, setRole] = useState<AppRole | null>(null);
 
-  const fetchUserData = async (userId: string) => {
+  const fetchUserData = async (userId: string, userObj?: User) => {
     try {
+      // Fallback inmediato desde user_metadata mientras llega la DB
+      if (userObj?.user_metadata?.full_name) {
+        setProfile((prev) => prev ?? {
+          full_name: userObj.user_metadata.full_name,
+          avatar_url: userObj.user_metadata.avatar_url ?? null,
+          email: userObj.email ?? "",
+          activo: true,
+        });
+      }
+
       const [profileRes, roleRes] = await Promise.all([
         supabase.from("profiles").select("full_name, avatar_url, email, activo").eq("id", userId).single(),
         supabase.from("user_roles").select("role").eq("user_id", userId).single(),
       ]);
+
       if (profileRes.data) setProfile(profileRes.data);
       if (roleRes.data) setRole(roleRes.data.role as AppRole);
     } catch (e) {
@@ -42,28 +53,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    // Cargar sesión inicial primero
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchUserData(session.user.id);
-      } else {
-        setLoading(false);
-      }
-    });
 
-    // Solo reaccionar a eventos explícitos
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
-        setSession(session);
-        setUser(session?.user ?? null);
+      if (
+        event === "INITIAL_SESSION" ||
+        event === "SIGNED_IN" ||
+        event === "TOKEN_REFRESHED"
+      ) {
         if (session?.user) {
-          setTimeout(() => fetchUserData(session.user.id), 0);
+          setTimeout(() => fetchUserData(session.user.id, session.user), 0);
+        } else {
+          setLoading(false);
         }
       } else if (event === "SIGNED_OUT") {
-        setSession(null);
-        setUser(null);
         setProfile(null);
         setRole(null);
         setLoading(false);
