@@ -8,7 +8,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  profile: { nombre: string; email: string; activo: boolean } | null;
+  profile: { full_name: string | null; avatar_url: string | null } | null;
   role: AppRole | null;
   signOut: () => Promise<void>;
   hasRole: (role: AppRole) => boolean;
@@ -23,7 +23,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [profile, setProfile] = useState<{ nombre: string; email: string; activo: boolean } | null>(null);
+  const [profile, setProfile] = useState<{ full_name: string | null; avatar_url: string | null } | null>(null);
   const [role, setRole] = useState<AppRole | null>(null);
 
   useEffect(() => {
@@ -55,7 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const fetchUserData = async (userId: string) => {
     try {
       const [profileRes, roleRes] = await Promise.all([
-        supabase.from("profiles").select("nombre, email, activo").eq("id", userId).single(),
+        supabase.from("profiles").select("full_name, avatar_url").eq("id", userId).single(),
         supabase.from("user_roles").select("role").eq("user_id", userId).single(),
       ]);
       if (profileRes.data) setProfile(profileRes.data);
