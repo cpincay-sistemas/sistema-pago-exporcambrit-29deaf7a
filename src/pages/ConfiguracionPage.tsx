@@ -170,7 +170,7 @@ export default function ConfiguracionPage() {
           <TableBody>
             {profiles.map((u) => (
               <TableRow key={u.id} className={!u.activo ? "opacity-50" : ""}>
-                <TableCell className="font-medium text-sm">{u.nombre || "Sin nombre"}</TableCell>
+                <TableCell className="font-medium text-sm">{u.full_name || "Sin nombre"}</TableCell>
                 <TableCell className="text-sm">{u.email}</TableCell>
                 <TableCell>
                   <Select value={getUserRole(u.id)} onValueChange={(v) => handleRoleChange(u.id, v as Rol)}>
